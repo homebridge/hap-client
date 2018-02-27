@@ -7,6 +7,10 @@ import { get, put } from 'request-promise';
 import * as decamelize from 'decamelize';
 import * as inflection from 'inflection';
 
+export type HapAccessoriesRespType = HapAccessoriesRespType;
+export type ServiceType = ServiceType;
+export type CharacteristicType = CharacteristicType;
+
 export class HapClient {
   private endpoint: string;
   private pin: string;
@@ -105,7 +109,7 @@ export class HapClient {
           };
 
           /* Helper function to returns a characteristic by it's type name */
-          service.getCharacteristicByType = (type: string) => {
+          service.getCharacteristic = (type: string) => {
             return service.serviceCharacteristics.find(c => c.type === type);
           };
 

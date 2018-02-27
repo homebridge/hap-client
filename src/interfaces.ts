@@ -33,7 +33,7 @@ export interface ServiceType {
   accessoryInformation: any;
   refreshCharacteristics?: () => Promise<ServiceType>;
   setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
-  getCharacteristicByType?: (name: string) => CharacteristicType;
+  getCharacteristic?: (type: string) => CharacteristicType;
   values: any;
 }
 
