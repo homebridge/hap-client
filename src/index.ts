@@ -40,11 +40,13 @@ export class HapClient {
       const accessoryInformationService = accessory.services.find(x => x.type === Services.AccessoryInformation);
       const accessoryInformation = {};
 
-      accessoryInformationService.characteristics.forEach((c) => {
-        if (c.value) {
-          accessoryInformation[c.description] = c.value;
-        }
-      });
+      if (accessoryInformationService && accessoryInformationService.characteristics) {
+        accessoryInformationService.characteristics.forEach((c) => {
+          if (c.value) {
+            accessoryInformation[c.description] = c.value;
+          }
+        });
+      }
 
       /* Parse All Services */
       accessory.services
