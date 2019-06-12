@@ -25,15 +25,15 @@
   "homepage": "https://github.com/oznu/hap-api#readme",
   "devDependencies": {
     "@types/node": "^10.12.18",
-    "@types/request-promise": "^4.1.42",
-    "tslint": "^5.12.1",
-    "typescript": "^3.2.2"
+    "@types/request-promise": "^4.1.44",
+    "tslint": "^5.17.0",
+    "typescript": "^3.5.1"
   },
   "dependencies": {
-    "decamelize": "^2.0.0",
+    "decamelize": "^3.2.0",
     "inflection": "^1.12.0",
     "request": "^2.88.0",
-    "request-promise": "^4.2.2",
-    "source-map-support": "^0.5.10"
+    "request-promise": "^4.2.4",
+    "source-map-support": "^0.5.12"
   }
 }
