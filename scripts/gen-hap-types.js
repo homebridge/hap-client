@@ -4,8 +4,11 @@ const fs = require('fs')
 const path = require('path')
 const rp = require('request-promise')
 
-async function load() {
+async function load(url) {
   let types = await rp.get('https://raw.githubusercontent.com/KhaosT/HAP-NodeJS/master/lib/gen/HomeKitTypes.js')
+  let tvTypes = await rp.get('https://raw.githubusercontent.com/KhaosT/HAP-NodeJS/master/lib/gen/HomeKitTypes-Television.js')
+
+  types += tvTypes;
 
   types = types.split('\n').filter(t => t.match(/UUID/))
 
