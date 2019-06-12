@@ -98,6 +98,7 @@ export class HapClient {
             serviceCharacteristics: serviceCharacteristics,
             accessoryInformation: accessoryInformation,
             values: {},
+            linked: s.linked,
           };
 
           /* Helper function to trigger a call to the accessory to get all the characteristic values */

@@ -6,6 +6,7 @@ export interface HapAccessoriesRespType {
       type: string;
       primary: boolean;
       hidden: boolean;
+      linked?: Array<number>;
       characteristics: Array<{
         iid: number;
         type: string;
@@ -27,6 +28,11 @@ export interface ServiceType {
   iid: number;
   uuid: string;
   type: string;
+  linked?: Array<number>;
+  linkedServices?: {
+    [iid: number]: ServiceType;
+  };
+  hidden?: boolean;
   humanType: string;
   serviceName: string;
   serviceCharacteristics: CharacteristicType[];
