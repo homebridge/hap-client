@@ -1,5 +1,7 @@
 import 'source-map-support/register';
 
+import * as crypto from 'crypto';
+import { HAPNodeJSClient } from 'hap-node-client';
 import { Services, Characteristics } from './hap-types';
 import { HapAccessoriesRespType, ServiceType, CharacteristicType } from './interfaces';
 
@@ -12,8 +14,10 @@ export type ServiceType = ServiceType;
 export type CharacteristicType = CharacteristicType;
 
 export class HapClient {
-  private endpoint: string;
+  private hap: HAPNodeJSClient;
   private pin: string;
+  private instances = [];
+  private logger;
 
   private hiddenServices = [
     Services.AccessoryInformation
@@ -23,18 +27,63 @@ export class HapClient {
     Characteristics.Name
   ];
 
-  constructor(endpoint: string, pin: string) {
-    this.endpoint = endpoint;
+  constructor(pin: string, logger?: any) {
     this.pin = pin;
+    this.logger = logger;
+
+    this.hap = new HAPNodeJSClient({
+      pin: this.pin,
+      debug: false,
+      timeout: 5,
+    });
+
+    this.hap.on('Ready', () => {
+      this.ready();
+    });
+  }
+
+  private async ready() {
+    return new Promise((resolve, reject) => {
+      this.hap.HAPaccessories(async (instances) => {
+        this.instances = [];
+        for (const instance of instances) {
+            this.instances.push({
+              ipAddress: instance.ipAddress,
+              port: instance.instance.port,
+              username: instance.instance.txt.id,
+              name: instance.instance.txt.md,
+            });
+        }
+      });
+    });
+  }
+
+  private async getAccessories() {
+    const accessories = [];
+    for (const instance of this.instances) {
+      try {
+        const resp: HapAccessoriesRespType = await get(`http://${instance.ipAddress}:${instance.port}/accessories`, { json: true });
+        for (const accessory of resp.accessories) {
+          accessory.instance = instance;
+          accessories.push(accessory);
+        }
+      } catch (e) {
+        if (this.logger) {
+          this.logger.error(`Failed to connect to Homebridge instance ${instance.username}`);
+        }
+      }
+    }
+    return accessories;
   }
 
   async getAllServices() {
     /* Get Accessories from HAP */
-    const resp: HapAccessoriesRespType = await get(`${this.endpoint}/accessories`, { json: true });
+    const accessories = await this.getAccessories();
+
     const services: Array<ServiceType> = [];
 
     /* Parse All Accessories */
-    resp.accessories.forEach(accessory => {
+    accessories.forEach(accessory => {
 
       /* Parse Accessory Information */
       const accessoryInformationService = accessory.services.find(x => x.type === Services.AccessoryInformation);
@@ -99,7 +148,13 @@ export class HapClient {
             accessoryInformation: accessoryInformation,
             values: {},
             linked: s.linked,
+            instance: accessory.instance,
           };
+
+          // generate unique id for service
+          service.uniqueId = crypto.createHash('sha256')
+            .update(`${service.instance.username}${service.aid}${service.iid}${service.type}`)
+            .digest('hex');
 
           /* Helper function to trigger a call to the accessory to get all the characteristic values */
           service.refreshCharacteristics = () => {
@@ -151,7 +206,7 @@ export class HapClient {
   async refreshServiceCharacteristics(service: ServiceType) {
     const iids: number[] = service.serviceCharacteristics.map(c => c.iid);
 
-    const resp = await get(`${this.endpoint}/characteristics`, {
+    const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
       qs: {
         id: iids.map(iid => `${service.aid}.${iid}`).join(',')
       },
@@ -167,7 +222,7 @@ export class HapClient {
   }
 
   async getCharacteristic(service: ServiceType, iid: number) {
-    const resp = await get(`${this.endpoint}/characteristics`, {
+    const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
       qs: {
         id: `${service.aid}.${iid}`
       },
@@ -181,22 +236,35 @@ export class HapClient {
   }
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
-    await put(`${this.endpoint}/characteristics`, {
-      headers: {
-        Authorization: this.pin
-      },
-      json: {
-        characteristics: [
-          {
-            aid: service.aid,
-            iid: iid,
-            value: value
-          }
-        ]
+    try {
+      await put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        headers: {
+          Authorization: this.pin
+        },
+        json: {
+          characteristics: [
+            {
+              aid: service.aid,
+              iid: iid,
+              value: value
+            }
+          ]
+        }
+      });
+      return this.getCharacteristic(service, iid);
+    } catch (e) {
+      if (this.logger) {
+        this.logger.error(`[${service.instance.name} (${service.instance.username})] Failed to set value for ${service.serviceName}.`);
+        if (e.statusCode === 401) {
+          this.logger.warn(`[${service.instance.name} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        } else {
+          this.logger.error(e.message);
+        }
+      } else {
+        console.log(e);
       }
-    });
-
-    return this.getCharacteristic(service, iid);
+    }
   }
 
   private humanizeString(string: string) {

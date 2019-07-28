@@ -18,7 +18,7 @@
     "api"
   ],
   "author": "oznu <dev@oz.nu>",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/oznu/hap-api/issues"
   },
@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "decamelize": "^2.0.0",
+    "hap-node-client": "0.0.26",
     "inflection": "^1.12.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
