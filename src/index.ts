@@ -1,23 +1,30 @@
 import 'source-map-support/register';
 
 import * as crypto from 'crypto';
-import { HAPNodeJSClient } from 'hap-node-client';
 import { Services, Characteristics } from './hap-types';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType } from './interfaces';
-
-import { get, put } from 'request-promise';
+import { HapMonitor } from './monitor';
+import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance } from './interfaces';
+import { get, put } from 'request-promise-native';
 import * as decamelize from 'decamelize';
 import * as inflection from 'inflection';
+import * as Bonjour from 'bonjour';
 
 export type HapAccessoriesRespType = HapAccessoriesRespType;
 export type ServiceType = ServiceType;
 export type CharacteristicType = CharacteristicType;
 
 export class HapClient {
-  private hap: HAPNodeJSClient;
-  private pin: string;
-  private instances = [];
+  private bonjour = Bonjour();
+
   private logger;
+  private pin: string;
+  private debugEnabled: boolean;
+  private config: {
+    debug?: boolean;
+    instanceBlacklist?: string[];
+  };
+
+  private instances: HapInstance[] = [];
 
   private hiddenServices = [
     Services.AccessoryInformation
@@ -27,35 +34,79 @@ export class HapClient {
     Characteristics.Name
   ];
 
-  constructor(pin: string, logger?: any) {
-    this.pin = pin;
-    this.logger = logger;
+  constructor(opts: {
+    pin: string;
+    logger?: any;
+    config: any;
+  }) {
+    this.pin = opts.pin;
+    this.logger = opts.logger;
+    this.debugEnabled = opts.config.debug;
+    this.config = opts.config;
+    this.startDiscovery();
 
-    this.hap = new HAPNodeJSClient({
-      pin: this.pin,
-      debug: false,
-      timeout: 5,
-    });
-
-    this.hap.on('Ready', () => {
-      this.ready();
-    });
   }
 
-  private async ready() {
-    return new Promise((resolve, reject) => {
-      this.hap.HAPaccessories(async (instances) => {
-        this.instances = [];
-        for (const instance of instances) {
-            this.instances.push({
-              ipAddress: instance.ipAddress,
-              port: instance.instance.port,
-              username: instance.instance.txt.id,
-              name: instance.instance.txt.md,
-            });
-        }
-      });
+  debug(msg) {
+    if (this.debugEnabled) {
+      this.logger.log(msg);
+    }
+  }
+
+  private async startDiscovery() {
+    const browser = this.bonjour.find({
+      type: 'hap'
     });
+
+    // start matching services
+    browser.start();
+
+    // service found
+    browser.on('up', async (device: any) => {
+      const instance = {
+        name: device.txt.md,
+        username: device.txt.id,
+        port: device.port,
+        services: [],
+      } as any;
+
+      for (const ip of device.addresses) {
+        if (ip.match(/^(?:(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(\.(?!$)|$)){4}$/)) {
+          try {
+            const test = await get(`http://${ip}:${device.port}/accessories`, {
+              json: true,
+              timeout: 1000,
+            });
+            if (test.accessories) {
+              instance.ipAddress = ip;
+            }
+            break;
+          } catch (e) {
+            // do nothing
+          }
+        }
+      }
+
+      // check instance is not on the blacklist
+      if (instance.ipAddress && this.config.instanceBlacklist) {
+        if (this.config.instanceBlacklist.find(x => instance.username.toLowerCase() === x.toLowerCase())) {
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Disregarding instance in blacklist`);
+          return;
+        }
+      }
+
+      // store instance record
+      if (instance.ipAddress) {
+        const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
+        if (existingInstanceIndex > -1) {
+          this.instances[existingInstanceIndex] = instance;
+        } else {
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Discovered instance`);
+          this.instances.push(instance);
+        }
+      }
+    });
+
   }
 
   private async getAccessories() {
@@ -69,14 +120,19 @@ export class HapClient {
         }
       } catch (e) {
         if (this.logger) {
-          this.logger.error(`Failed to connect to Homebridge instance ${instance.username}`);
+          this.logger.error(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
         }
       }
     }
     return accessories;
   }
 
-  async getAllServices() {
+  public async monitorCharacteristics() {
+    const services = await this.getAllServices();
+    return new HapMonitor(this.logger, this.debug.bind(this), this.pin, services);
+  }
+
+  public async getAllServices() {
     /* Get Accessories from HAP */
     const accessories = await this.getAccessories();
 
@@ -133,7 +189,8 @@ export class HapClient {
                 minValue: c.minValue,
                 minStep: c.minStep,
                 canRead: c.perms.includes('pr'),
-                canWrite: c.perms.includes('pw')
+                canWrite: c.perms.includes('pw'),
+                ev: c.perms.includes('ev'),
               };
             });
 
@@ -254,10 +311,11 @@ export class HapClient {
       return this.getCharacteristic(service, iid);
     } catch (e) {
       if (this.logger) {
-        this.logger.error(`[${service.instance.name} (${service.instance.username})] Failed to set value for ${service.serviceName}.`);
+        this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Failed to set value for ${service.serviceName}.`);
         if (e.statusCode === 401) {
-          this.logger.warn(`[${service.instance.name} (${service.instance.username})] ` +
-          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+          this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+            `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
         } else {
           this.logger.error(e.message);
         }

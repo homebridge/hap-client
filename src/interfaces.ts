@@ -1,3 +1,21 @@
+import { Socket } from 'net';
+
+export interface HapInstance {
+  name: string;
+  ipAddress: string;
+  port: number;
+  username: string;
+}
+
+export interface HapEvInstance {
+  name: string;
+  ipAddress: string;
+  port: number;
+  username: string;
+  evCharacteristics?: { aid: number, iid: number, ev: boolean }[];
+  socket?: Socket;
+}
+
 export interface HapAccessoriesRespType {
   accessories: Array<{
     instance: {
@@ -73,6 +91,7 @@ export interface CharacteristicType {
   minStep?: number;
   canRead: boolean;
   canWrite: boolean;
+  ev: boolean;
   setValue?: (value: number | string | boolean) => Promise<CharacteristicType>;
   getValue?: () => Promise<CharacteristicType>;
 }
