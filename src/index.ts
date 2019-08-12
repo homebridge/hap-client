@@ -1,20 +1,22 @@
 import 'source-map-support/register';
-
 import * as crypto from 'crypto';
-import { Services, Characteristics } from './hap-types';
-import { HapMonitor } from './monitor';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance } from './interfaces';
-import { get, put } from 'request-promise-native';
 import * as decamelize from 'decamelize';
 import * as inflection from 'inflection';
 import * as Bonjour from 'bonjour';
+import { EventEmitter } from 'events';
+import { get, put } from 'request-promise-native';
+
+import { Services, Characteristics } from './hap-types';
+import { HapMonitor } from './monitor';
+import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance } from './interfaces';
 
 export type HapAccessoriesRespType = HapAccessoriesRespType;
 export type ServiceType = ServiceType;
 export type CharacteristicType = CharacteristicType;
 
-export class HapClient {
+export class HapClient extends EventEmitter {
   private bonjour = Bonjour();
+  private browser;
 
   private logger;
   private pin: string;
@@ -39,12 +41,13 @@ export class HapClient {
     logger?: any;
     config: any;
   }) {
+    super();
+
     this.pin = opts.pin;
     this.logger = opts.logger;
     this.debugEnabled = opts.config.debug;
     this.config = opts.config;
     this.startDiscovery();
-
   }
 
   debug(msg) {
@@ -53,16 +56,22 @@ export class HapClient {
     }
   }
 
+  public refreshInstances() {
+    this.debug(`[HapClient] Discovery :: Sending Hap Discovery Request`);
+    this.browser.update();
+  }
+
   private async startDiscovery() {
-    const browser = this.bonjour.find({
+    this.browser = this.bonjour.find({
       type: 'hap'
     });
 
     // start matching services
-    browser.start();
+    this.browser.start();
+    this.debug(`[HapClient] Discovery :: Started`);
 
     // service found
-    browser.on('up', async (device: any) => {
+    this.browser.on('up', async (device: any) => {
       const instance = {
         name: device.txt.md,
         username: device.txt.id,
@@ -70,19 +79,23 @@ export class HapClient {
         services: [],
       } as any;
 
+      this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
+
       for (const ip of device.addresses) {
         if (ip.match(/^(?:(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(\.(?!$)|$)){4}$/)) {
           try {
+            this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`);
             const test = await get(`http://${ip}:${device.port}/accessories`, {
               json: true,
               timeout: 1000,
             });
             if (test.accessories) {
+              this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`);
               instance.ipAddress = ip;
             }
             break;
           } catch (e) {
-            // do nothing
+            this.debug(`[HapClient] Discovery :: Failed ${instance.username} via http://${ip}:${device.port}/accessories`);
           }
         }
       }
@@ -90,7 +103,8 @@ export class HapClient {
       // check instance is not on the blacklist
       if (instance.ipAddress && this.config.instanceBlacklist) {
         if (this.config.instanceBlacklist.find(x => instance.username.toLowerCase() === x.toLowerCase())) {
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Disregarding instance in blacklist`);
+          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+            `Instance found in blacklist. Disregarding.`);
           return;
         }
       }
@@ -100,16 +114,26 @@ export class HapClient {
         const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
         if (existingInstanceIndex > -1) {
           this.instances[existingInstanceIndex] = instance;
+          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Updated`);
         } else {
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Discovered instance`);
+          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
           this.instances.push(instance);
         }
+
+        // let the client know we discovered a new instance
+        this.emit('instance-discovered', instance);
+      } else {
+        this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`);
       }
     });
 
   }
 
   private async getAccessories() {
+    if (!this.instances.length) {
+      this.logger.warn('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.');
+    }
+
     const accessories = [];
     for (const instance of this.instances) {
       try {
