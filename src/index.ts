@@ -17,6 +17,7 @@ export type CharacteristicType = CharacteristicType;
 export class HapClient extends EventEmitter {
   private bonjour = Bonjour();
   private browser;
+  private discoveryInProgress = false;
 
   private logger;
   private pin: string;
@@ -57,11 +58,19 @@ export class HapClient extends EventEmitter {
   }
 
   public refreshInstances() {
-    this.debug(`[HapClient] Discovery :: Sending Hap Discovery Request`);
-    this.browser.update();
+    if (!this.discoveryInProgress) {
+      this.startDiscovery();
+    } else {
+      try {
+        this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`);
+        this.browser.update();
+      } catch (e) { }
+    }
   }
 
   private async startDiscovery() {
+    this.discoveryInProgress = true;
+
     this.browser = this.bonjour.find({
       type: 'hap'
     });
@@ -69,6 +78,13 @@ export class HapClient extends EventEmitter {
     // start matching services
     this.browser.start();
     this.debug(`[HapClient] Discovery :: Started`);
+
+    // stop discovery after 20 seconds
+    setTimeout(() => {
+      this.browser.stop();
+      this.debug(`[HapClient] Discovery :: Ended`);
+      this.discoveryInProgress = false;
+    }, 60000);
 
     // service found
     this.browser.on('up', async (device: any) => {
@@ -80,6 +96,30 @@ export class HapClient extends EventEmitter {
       } as any;
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
+
+      // update an existing instance
+      const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
+      if (existingInstanceIndex > -1) {
+
+        if (
+          this.instances[existingInstanceIndex].port !== instance.port ||
+          this.instances[existingInstanceIndex].name !== instance.name
+        ) {
+          this.instances[existingInstanceIndex].port = instance.port;
+          this.instances[existingInstanceIndex].name = instance.name;
+          this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} ` +
+            `(${instance.username})] Instance Updated`);
+          this.emit('instance-discovered', instance);
+        }
+
+        return;
+      }
+
+      // check instance is not on the blacklist
+      if (this.config.instanceBlacklist && this.config.instanceBlacklist.find(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`);
+        return;
+      }
 
       for (const ip of device.addresses) {
         if (ip.match(/^(?:(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(\.(?!$)|$)){4}$/)) {
@@ -100,27 +140,10 @@ export class HapClient extends EventEmitter {
         }
       }
 
-      // check instance is not on the blacklist
-      if (instance.ipAddress && this.config.instanceBlacklist) {
-        if (this.config.instanceBlacklist.find(x => instance.username.toLowerCase() === x.toLowerCase())) {
-          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-            `Instance found in blacklist. Disregarding.`);
-          return;
-        }
-      }
-
       // store instance record
       if (instance.ipAddress) {
-        const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
-        if (existingInstanceIndex > -1) {
-          this.instances[existingInstanceIndex] = instance;
-          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Updated`);
-        } else {
-          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
-          this.instances.push(instance);
-        }
-
-        // let the client know we discovered a new instance
+        this.instances.push(instance);
+        this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
         this.emit('instance-discovered', instance);
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`);

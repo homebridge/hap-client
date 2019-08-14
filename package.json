@@ -1,6 +1,6 @@
 {
   "name": "@oznu/hap-client",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "A client for HAP-NodeJS",
   "main": "./dist/index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git://github.com/oznu/hap-api.git"
+    "url": "git://github.com/oznu/hap-client.git"
   },
   "keywords": [
     "hap",
