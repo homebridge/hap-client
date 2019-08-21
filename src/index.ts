@@ -88,6 +88,10 @@ export class HapClient extends EventEmitter {
 
     // service found
     this.browser.on('up', async (device: any) => {
+      if (!device || !device.txt) {
+        this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`);
+      }
+
       const instance = {
         name: device.txt.md,
         username: device.txt.id,
