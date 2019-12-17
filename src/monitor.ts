@@ -33,7 +33,6 @@ export class HapMonitor extends EventEmitter {
       instance.socket.on('data', (data) => {
         const message = parseMessage(data);
 
-
         if (message.statusCode === 401) {
           if (this.logger) {
             this.logger.warn(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
@@ -50,7 +49,8 @@ export class HapMonitor extends EventEmitter {
 
               const response = body.characteristics.map((c) => {
                 // find the matching service for each characteristics
-                const service = this.services.find(x => x.aid === c.aid && x.instance.username === instance.username);
+                const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username);
+                const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid));
 
                 if (service) {
                   // find the correct characteristic and update it

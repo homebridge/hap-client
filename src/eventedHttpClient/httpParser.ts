@@ -5,8 +5,6 @@
 
 // Borrowed and heaviliy modifed from https://github.com/miguelmota/http-message-parser
 
-import { Buffer } from 'buffer';
-
 function httpMessageParser(message) {
   const result = {
     protocol: null,
@@ -19,7 +17,7 @@ function httpMessageParser(message) {
     body: null,
     boundary: null,
     multipart: null,
-    additional: null
+    additional: null,
   };
 
   let messageString = '';
@@ -168,10 +166,10 @@ function httpMessageParser(message) {
             body: {
               byteOffset: {
                 start: null,
-                end: null
-              }
-            }
-          }
+                end: null,
+              },
+            },
+          },
         };
 
         const newlineRegex = /\n\n|\r\n\r\n/gim;

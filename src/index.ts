@@ -10,9 +10,7 @@ import { Services, Characteristics } from './hap-types';
 import { HapMonitor } from './monitor';
 import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance } from './interfaces';
 
-export type HapAccessoriesRespType = HapAccessoriesRespType;
-export type ServiceType = ServiceType;
-export type CharacteristicType = CharacteristicType;
+export * from './interfaces';
 
 export class HapClient extends EventEmitter {
   private bonjour = Bonjour();
@@ -30,11 +28,11 @@ export class HapClient extends EventEmitter {
   private instances: HapInstance[] = [];
 
   private hiddenServices = [
-    Services.AccessoryInformation
+    Services.AccessoryInformation,
   ];
 
   private hiddenCharacteristics = [
-    Characteristics.Name
+    Characteristics.Name,
   ];
 
   constructor(opts: {
@@ -72,7 +70,7 @@ export class HapClient extends EventEmitter {
     this.discoveryInProgress = true;
 
     this.browser = this.bonjour.find({
-      type: 'hap'
+      type: 'hap',
     });
 
     // start matching services
@@ -218,7 +216,7 @@ export class HapClient extends EventEmitter {
             description: 'Name',
             format: 'string',
             value: this.humanizeString(Services[s.type]),
-            perms: ['pr']
+            perms: ['pr'],
           };
 
           /* Parse Service Characteristics */
@@ -253,8 +251,8 @@ export class HapClient extends EventEmitter {
             type: Services[s.type],
             humanType: this.humanizeString(Services[s.type]),
             serviceName: serviceName.value.toString(),
-            serviceCharacteristics: serviceCharacteristics,
-            accessoryInformation: accessoryInformation,
+            serviceCharacteristics,
+            accessoryInformation,
             values: {},
             linked: s.linked,
             instance: accessory.instance,
@@ -317,9 +315,9 @@ export class HapClient extends EventEmitter {
 
     const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
       qs: {
-        id: iids.map(iid => `${service.aid}.${iid}`).join(',')
+        id: iids.map(iid => `${service.aid}.${iid}`).join(','),
       },
-      json: true
+      json: true,
     });
 
     resp.characteristics.forEach((c) => {
@@ -333,9 +331,9 @@ export class HapClient extends EventEmitter {
   async getCharacteristic(service: ServiceType, iid: number) {
     const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
       qs: {
-        id: `${service.aid}.${iid}`
+        id: `${service.aid}.${iid}`,
       },
-      json: true
+      json: true,
     });
 
     const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
@@ -348,17 +346,17 @@ export class HapClient extends EventEmitter {
     try {
       await put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
         headers: {
-          Authorization: this.pin
+          Authorization: this.pin,
         },
         json: {
           characteristics: [
             {
               aid: service.aid,
-              iid: iid,
-              value: value
-            }
-          ]
-        }
+              iid,
+              value,
+            },
+          ],
+        },
       });
       return this.getCharacteristic(service, iid);
     } catch (e) {
