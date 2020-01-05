@@ -5,6 +5,7 @@ export interface HapInstance {
   ipAddress: string;
   port: number;
   username: string;
+  connectionFailedCount: number;
 }
 
 export interface HapEvInstance {

@@ -96,6 +96,7 @@ export class HapClient extends EventEmitter {
         username: device.txt.id,
         port: device.port,
         services: [],
+        connectionFailedCount: 0,
       } as any;
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
@@ -164,13 +165,21 @@ export class HapClient extends EventEmitter {
     for (const instance of this.instances) {
       try {
         const resp: HapAccessoriesRespType = await get(`http://${instance.ipAddress}:${instance.port}/accessories`, { json: true });
+        instance.connectionFailedCount = 0;
         for (const accessory of resp.accessories) {
           accessory.instance = instance;
           accessories.push(accessory);
         }
       } catch (e) {
         if (this.logger) {
+          instance.connectionFailedCount++;
           this.logger.error(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
+
+          if (instance.connectionFailedCount > 5) {
+            const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
+            this.instances.splice(instanceIndex, 1);
+            this.logger.warn(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
+          }
         }
       }
     }
