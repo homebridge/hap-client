@@ -1,6 +1,6 @@
 {
   "name": "@oznu/hap-client",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A client for HAP-NodeJS",
   "main": "./dist/index.js",
   "scripts": {
@@ -25,18 +25,18 @@
   },
   "homepage": "https://github.com/oznu/hap-api#readme",
   "devDependencies": {
-    "@types/bonjour": "^3.5.5",
-    "@types/node": "^12.12.24",
+    "@types/bonjour": "^3.5.6",
+    "@types/node": "^12.12.29",
     "@types/request-promise": "^4.1.45",
-    "hap-nodejs": "^0.5.4",
+    "hap-nodejs": "^0.5.6",
     "tslint": "^5.20.1",
-    "typescript": "^3.7.4"
+    "typescript": "^3.8.3"
   },
   "dependencies": {
     "bonjour": "^3.5.0",
     "decamelize": "^3.2.0",
     "inflection": "^1.12.0",
-    "request": "^2.88.0",
+    "request": "^2.88.2",
     "request-promise-native": "^1.0.8",
     "source-map-support": "^0.5.16"
   }

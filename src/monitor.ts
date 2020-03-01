@@ -35,7 +35,7 @@ export class HapMonitor extends EventEmitter {
 
         if (message.statusCode === 401) {
           if (this.logger) {
-            this.logger.warn(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
               `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
           }
         }

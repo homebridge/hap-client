@@ -22,9 +22,9 @@ export function createConnection(instance, pin: string, body) {
     headers: {
       'Content-Type': 'Application/json',
       'authorization': pin,
-      'connection': 'keep-alive'
+      'connection': 'keep-alive',
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   }));
 
   return client;

@@ -158,7 +158,7 @@ export class HapClient extends EventEmitter {
 
   private async getAccessories() {
     if (!this.instances.length) {
-      this.logger.warn('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.');
+      this.debug('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.');
     }
 
     const accessories = [];
