@@ -319,36 +319,46 @@ export class HapClient extends EventEmitter {
     return services.find(x => x.serviceName === serviceName);
   }
 
-  async refreshServiceCharacteristics(service: ServiceType) {
-    const iids: number[] = service.serviceCharacteristics.map(c => c.iid);
+  async refreshServiceCharacteristics(service: ServiceType): Promise<ServiceType> {
+    try {
+      const iids: number[] = service.serviceCharacteristics.map(c => c.iid);
 
-    const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-      qs: {
-        id: iids.map(iid => `${service.aid}.${iid}`).join(','),
-      },
-      json: true,
-    });
+      const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        qs: {
+          id: iids.map(iid => `${service.aid}.${iid}`).join(','),
+        },
+        json: true,
+      });
 
-    resp.characteristics.forEach((c) => {
-      const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid);
-      characteristic.value = c.value;
-    });
+      resp.characteristics.forEach((c) => {
+        const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid);
+        characteristic.value = c.value;
+      });
 
+    } catch (e) {
+      this.debug(e);
+      this.logger.log(`Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+    }
     return service;
   }
 
-  async getCharacteristic(service: ServiceType, iid: number) {
-    const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-      qs: {
-        id: `${service.aid}.${iid}`,
-      },
-      json: true,
-    });
+  async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
+    try {
+      const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        qs: {
+          id: `${service.aid}.${iid}`,
+        },
+        json: true,
+      });
 
-    const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
-    characteristic.value = resp.characteristics[0].value;
+      const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
+      characteristic.value = resp.characteristics[0].value;
 
-    return characteristic;
+      return characteristic;
+    } catch (e) {
+      this.debug(e);
+      this.logger.log(`Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
+    }
   }
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
