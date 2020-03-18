@@ -1,14 +1,14 @@
 import 'source-map-support/register';
+import axios from 'axios';
 import * as crypto from 'crypto';
 import * as decamelize from 'decamelize';
 import * as inflection from 'inflection';
 import * as Bonjour from 'bonjour';
 import { EventEmitter } from 'events';
-import { get, put } from 'request-promise-native';
 
 import { Services, Characteristics } from './hap-types';
 import { HapMonitor } from './monitor';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance } from './interfaces';
+import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType } from './interfaces';
 
 export * from './interfaces';
 
@@ -129,10 +129,9 @@ export class HapClient extends EventEmitter {
         if (ip.match(/^(?:(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(\.(?!$)|$)){4}$/)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`);
-            const test = await get(`http://${ip}:${device.port}/accessories`, {
-              json: true,
+            const test: HapAccessoriesRespType = (await axios.get(`http://${ip}:${device.port}/accessories`, {
               timeout: 1000,
-            });
+            })).data;
             if (test.accessories) {
               this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`);
               instance.ipAddress = ip;
@@ -164,7 +163,7 @@ export class HapClient extends EventEmitter {
     const accessories = [];
     for (const instance of this.instances) {
       try {
-        const resp: HapAccessoriesRespType = await get(`http://${instance.ipAddress}:${instance.port}/accessories`, { json: true });
+        const resp: HapAccessoriesRespType = (await axios.get(`http://${instance.ipAddress}:${instance.port}/accessories`)).data;
         instance.connectionFailedCount = 0;
         for (const accessory of resp.accessories) {
           accessory.instance = instance;
@@ -323,12 +322,11 @@ export class HapClient extends EventEmitter {
     try {
       const iids: number[] = service.serviceCharacteristics.map(c => c.iid);
 
-      const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        qs: {
+      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        params: {
           id: iids.map(iid => `${service.aid}.${iid}`).join(','),
-        },
-        json: true,
-      });
+        }
+      })).data;
 
       resp.characteristics.forEach((c) => {
         const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid);
@@ -344,12 +342,11 @@ export class HapClient extends EventEmitter {
 
   async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
     try {
-      const resp = await get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        qs: {
+      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        params: {
           id: `${service.aid}.${iid}`,
         },
-        json: true,
-      });
+      })).data;
 
       const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
       characteristic.value = resp.characteristics[0].value;
@@ -363,11 +360,8 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
     try {
-      await put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        headers: {
-          Authorization: this.pin,
-        },
-        json: {
+      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`,
+        {
           characteristics: [
             {
               aid: service.aid,
@@ -376,17 +370,25 @@ export class HapClient extends EventEmitter {
             },
           ],
         },
-      });
+        {
+          headers: {
+            Authorization: this.pin,
+          },
+        }
+      );
       return this.getCharacteristic(service, iid);
     } catch (e) {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
           `Failed to set value for ${service.serviceName}.`);
-        if (e.statusCode === 401) {
+        if (e.response && e.response.status === 470 || e.response.status === 401) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
             `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+          throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+            `is set to ${this.pin}.`);
         } else {
           this.logger.error(e.message);
+          throw new Error(`Failed to control accessory: ${e.message}`);
         }
       } else {
         console.log(e);

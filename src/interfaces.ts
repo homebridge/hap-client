@@ -48,6 +48,14 @@ export interface HapAccessoriesRespType {
   }>;
 }
 
+export interface HapCharacteristicRespType {
+  characteristics: {
+    aid: number;
+    iid: number;
+    value: number | string | boolean;
+  }[];
+}
+
 export interface ServiceType {
   aid: number;
   iid: number;
