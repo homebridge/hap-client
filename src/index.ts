@@ -172,12 +172,12 @@ export class HapClient extends EventEmitter {
       } catch (e) {
         if (this.logger) {
           instance.connectionFailedCount++;
-          this.logger.error(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
 
           if (instance.connectionFailedCount > 5) {
             const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
             this.instances.splice(instanceIndex, 1);
-            this.logger.warn(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
+            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
           }
         }
       }
