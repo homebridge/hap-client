@@ -55,6 +55,20 @@ export class HapClient extends EventEmitter {
     }
   }
 
+  public resetInstancePool() {
+    if (this.discoveryInProgress) {
+      this.browser.stop();
+      this.debug(`[HapClient] Discovery :: Terminated`);
+      this.discoveryInProgress = false;
+    }
+
+    this.instances = [];
+
+    setTimeout(() => {
+      this.refreshInstances();
+    }, 6000);
+  }
+
   public refreshInstances() {
     if (!this.discoveryInProgress) {
       this.startDiscovery();
