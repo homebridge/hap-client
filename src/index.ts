@@ -105,13 +105,14 @@ export class HapClient extends EventEmitter {
         return;
       }
 
-      const instance = {
+      const instance: HapInstance = {
         name: device.txt.md,
         username: device.txt.id,
+        ipAddress: null,
         port: device.port,
         services: [],
         connectionFailedCount: 0,
-      } as any;
+      };
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
 
@@ -157,8 +158,8 @@ export class HapClient extends EventEmitter {
         }
       }
 
-      // store instance record
-      if (instance.ipAddress) {
+      // store instance record if the connection works
+      if (instance.ipAddress && await this.checkInstanceConnection(instance)) {
         this.instances.push(instance);
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
         this.emit('instance-discovered', instance);
@@ -167,6 +168,28 @@ export class HapClient extends EventEmitter {
       }
     });
 
+  }
+
+  /**
+   * This checks the instance pin matches
+   */
+  private async checkInstanceConnection(instance: HapInstance): Promise<boolean> {
+    try {
+      await axios.put(`http://${instance.ipAddress}:${instance.port}/characteristics`,
+        {
+          characteristics: [{ aid: -1, iid: -1 }],
+        },
+        {
+          headers: {
+            Authorization: this.pin,
+          },
+        }
+      );
+      return true;
+    } catch (e) {
+      this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`);
+      return false;
+    }
   }
 
   private async getAccessories() {

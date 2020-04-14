@@ -2,10 +2,11 @@ import { Socket } from 'net';
 
 export interface HapInstance {
   name: string;
-  ipAddress: string;
+  ipAddress: string | null;
   port: number;
   username: string;
   connectionFailedCount: number;
+  services: ServiceType[];
 }
 
 export interface HapEvInstance {
