@@ -7,6 +7,7 @@ import * as Bonjour from 'bonjour';
 import { EventEmitter } from 'events';
 
 import { Services, Characteristics } from './hap-types';
+import { toLongFormUUID } from './uuid';
 import { HapMonitor } from './monitor';
 import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType } from './interfaces';
 
@@ -192,7 +193,7 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  private async getAccessories() {
+  private async getAccessories(): Promise<HapAccessoriesRespType['accessories']> {
     if (!this.instances.length) {
       this.debug('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.');
     }
@@ -235,6 +236,13 @@ export class HapClient extends EventEmitter {
 
     /* Parse All Accessories */
     accessories.forEach(accessory => {
+      /** Ensure UUIDs are long form */
+      for (const service of accessory.services) {
+        service.type = toLongFormUUID(service.type);
+        for (const characteristic of service.characteristics) {
+          characteristic.type = toLongFormUUID(characteristic.type);
+        }
+      }
 
       /* Parse Accessory Information */
       const accessoryInformationService = accessory.services.find(x => x.type === Services.AccessoryInformation);
