@@ -9,7 +9,7 @@ import { EventEmitter } from 'events';
 import { Services, Characteristics } from './hap-types';
 import { toLongFormUUID } from './uuid';
 import { HapMonitor } from './monitor';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType } from './interfaces';
+import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType, AccessoryInformationProperties } from './interfaces';
 
 export * from './interfaces';
 
@@ -246,7 +246,7 @@ export class HapClient extends EventEmitter {
 
       /* Parse Accessory Information */
       const accessoryInformationService = accessory.services.find(x => x.type === Services.AccessoryInformation);
-      const accessoryInformation = {};
+      const accessoryInformation = {} as AccessoryInformationProperties;
 
       if (accessoryInformationService && accessoryInformationService.characteristics) {
         accessoryInformationService.characteristics.forEach((c) => {
@@ -268,7 +268,7 @@ export class HapClient extends EventEmitter {
             type: Characteristics.Name,
             description: 'Name',
             format: 'string',
-            value: this.humanizeString(Services[s.type]),
+            value: accessoryInformation.Name || this.humanizeString(Services[s.type]),
             perms: ['pr'],
           };
 

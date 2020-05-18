@@ -105,3 +105,11 @@ export interface CharacteristicType {
   setValue?: (value: number | string | boolean) => Promise<CharacteristicType>;
   getValue?: () => Promise<CharacteristicType>;
 }
+
+export interface AccessoryInformationProperties {
+  'Manufacturer': string;
+  'Model': string;
+  'Name': string;
+  'Serial Number': string;
+  'Firmware Revision': string;
+}
