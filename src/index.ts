@@ -155,6 +155,7 @@ export class HapClient extends EventEmitter {
             break;
           } catch (e) {
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} via http://${ip}:${device.port}/accessories`);
+            this.debug(`[HapClient] Discovery :: Failed ${instance.username} with error: ${e.message}`);
           }
         }
       }
