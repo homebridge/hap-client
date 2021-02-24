@@ -146,7 +146,7 @@ export class HapClient extends EventEmitter {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`);
             const test: HapAccessoriesRespType = (await axios.get(`http://${ip}:${device.port}/accessories`, {
-              timeout: 1000,
+              timeout: 10000,
             })).data;
             if (test.accessories) {
               this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`);
