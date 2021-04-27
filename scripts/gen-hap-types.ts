@@ -40,6 +40,7 @@ let Category = [
   'export const Categories = {',
 ] as any;
 
+// @ts-ignore
 for (const [name, value] of Object.entries(Categories)) {
   if (typeof value === 'number') {
     Category.push(`    '${name}': ${value},`);
