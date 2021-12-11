@@ -1,6 +1,6 @@
 {
   "name": "@oznu/hap-client",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "A client for HAP-NodeJS",
   "main": "./dist/index.js",
   "scripts": {
@@ -33,7 +33,7 @@
     "typescript": "^3.9.7"
   },
   "dependencies": {
-    "axios": "0.21.1",
+    "axios": "0.24.0",
     "bonjour": "^3.5.0",
     "decamelize": "^3.2.0",
     "inflection": "^1.12.0",
