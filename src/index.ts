@@ -3,7 +3,7 @@ import axios from 'axios';
 import * as crypto from 'crypto';
 import * as decamelize from 'decamelize';
 import * as inflection from 'inflection';
-import * as Bonjour from 'bonjour';
+import Bonjour, { Browser, Service } from 'bonjour-service'
 import { EventEmitter } from 'events';
 
 import { Services, Characteristics } from './hap-types';
@@ -14,8 +14,8 @@ import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, H
 export * from './interfaces';
 
 export class HapClient extends EventEmitter {
-  private bonjour = Bonjour();
-  private browser;
+  private bonjour = new Bonjour();
+  private browser: Browser;
   private discoveryInProgress = false;
 
   private logger;
@@ -100,7 +100,7 @@ export class HapClient extends EventEmitter {
     }, 60000);
 
     // service found
-    this.browser.on('up', async (device: any) => {
+    this.browser.on('up', async (device: Service) => {
       if (!device || !device.txt) {
         this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`);
         return;
