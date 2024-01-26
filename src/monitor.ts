@@ -6,10 +6,10 @@ export class HapMonitor extends EventEmitter {
   private pin;
   private evInstances: HapEvInstance[];
   private services: ServiceType[];
-  private logger;
-  private debug;
+  private logger: any;
+  private debug: (arg0: string) => void;
 
-  constructor(logger, debug, pin: string, services: ServiceType[]) {
+  constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
     super();
     this.logger = logger;
     this.debug = debug;
