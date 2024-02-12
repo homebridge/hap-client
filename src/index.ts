@@ -1,7 +1,7 @@
 import 'source-map-support/register';
 import axios from 'axios';
 import * as crypto from 'crypto';
-import * as decamelize from 'decamelize';
+import decamelize from 'decamelize';
 import * as inflection from 'inflection';
 import Bonjour, { Browser, Service } from 'bonjour-service'
 import { EventEmitter } from 'events';
