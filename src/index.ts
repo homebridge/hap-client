@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 
 import axios from 'axios';
-import decamelize from 'decamelize';
+import * as decamelize from 'decamelize';
 import { titleize } from 'inflection';
 import Bonjour, { Browser, Service } from 'bonjour-service'
 
