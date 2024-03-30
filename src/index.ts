@@ -1,15 +1,16 @@
-import 'source-map-support/register';
+import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+
 import axios from 'axios';
-import * as crypto from 'crypto';
 import * as decamelize from 'decamelize';
-import * as inflection from 'inflection';
+import { titleize } from 'inflection';
 import Bonjour, { Browser, Service } from 'bonjour-service'
-import { EventEmitter } from 'events';
 
 import { Services, Characteristics } from './hap-types';
 import { toLongFormUUID } from './uuid';
 import { HapMonitor } from './monitor';
 import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType, AccessoryInformationProperties } from './interfaces';
+import 'source-map-support/register';
 
 export * from './interfaces';
 
@@ -313,7 +314,7 @@ export class HapClient extends EventEmitter {
           };
 
           // generate unique id for service
-          service.uniqueId = crypto.createHash('sha256')
+          service.uniqueId = createHash('sha256')
             .update(`${service.instance.username}${service.aid}${service.iid}${service.type}`)
             .digest('hex');
 
@@ -443,7 +444,7 @@ export class HapClient extends EventEmitter {
   }
 
   private humanizeString(string: string) {
-    return inflection.titleize(decamelize(string));
+    return titleize(decamelize(string));
   }
 
 }
