@@ -1,4 +1,5 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
+
 import { ServiceType, HapEvInstance } from './interfaces';
 import { createConnection, parseMessage } from './eventedHttpClient';
 

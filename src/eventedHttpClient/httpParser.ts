@@ -3,7 +3,7 @@
  * https://raw.githubusercontent.com/NorthernMan54/Hap-Node-Client/master/lib/httpParser.js
  */
 
-// Borrowed and heaviliy modifed from https://github.com/miguelmota/http-message-parser
+// Borrowed and heavily modified from https://github.com/miguelmota/http-message-parser
 
 function httpMessageParser(message) {
   const result = {

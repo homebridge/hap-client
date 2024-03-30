@@ -3,14 +3,15 @@
  * https://github.com/NorthernMan54/Hap-Node-Client/blob/master/lib/eventedHttpClient.js
  */
 
-import * as net from 'net';
-import * as url from 'url';
-import httpMessageParser from './/httpParser';
+import { createConnection as netCreateConnection } from 'node:net';
+import { parse } from 'node:url';
+
+import httpMessageParser from './httpParser';
 
 export const parseMessage = httpMessageParser;
 
 export function createConnection(instance, pin: string, body) {
-  const client = net.createConnection({
+  const client = netCreateConnection({
     host: instance.ipAddress,
     port: instance.port,
   });
@@ -40,7 +41,7 @@ function _headersToString(headers) {
 }
 
 function _buildMessage(request) {
-  const context = url.parse(request.url);
+  const context = parse(request.url);
   let message;
 
   message = request.method + ' ' + context.pathname;
