@@ -1,9 +1,19 @@
-# hap-client
+<p align="center">
+  <a href="https://homebridge.io"><img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round-stylized.png" height="140"></a>
+</p>
+<span align="center">
 
-## License
+# HAP Client
 
-Copyright (C) 2019 oznu
+[![npm](https://badgen.net/npm/v/@homebridge/hap-client/latest)](https://www.npmjs.com/package/@homebridge/hap-client)
+[![npm](https://badgen.net/npm/dt/@homebridge/hap-client?label=downloads)](https://www.npmjs.com/package/@homebridge/hap-client)
+[![Discord](https://badgen.net/discord/online-members/C87Pvq3?icon=discord&label=discord)](https://discord.gg/C87Pvq3)
+[![Donate](https://badgen.net/badge/donate/paypal/yellow)](https://paypal.me/oznu)
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+</span>
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the [GNU General Public License](./LICENSE) for more details.
+A client for an insecure HAP-NodeJS instance.
+
+## Credits
+
+- HAP Client was originally created by [oznu](https://github.com/oznu).

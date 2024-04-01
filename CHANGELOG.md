@@ -8,6 +8,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - create CHANGELOG file
 - update LICENSE to standardise with other hb repos
+- update README to standardise with other hb repos
 
 ## v1.10.0 (2024-03-31)
 
