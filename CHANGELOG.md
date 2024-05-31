@@ -6,6 +6,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
+- update dependencies (`axios`)
 - update dev dependencies
 
 ## v1.10.2 (2024-04-19)

@@ -38,20 +38,20 @@
   },
   "homepage": "https://github.com/homebridge/hap-client/blob/latest#readme",
   "dependencies": {
-    "axios": "1.6.8",
+    "axios": "1.7.2",
     "bonjour-service": "1.2.1",
     "decamelize": "5.0.1",
     "inflection": "3.0.0",
     "source-map-support": "0.5.21"
   },
   "devDependencies": {
-    "@types/node": "^20.12.12",
+    "@types/node": "^20.13.0",
     "@types/source-map-support": "^0.5.10",
-    "@typescript-eslint/eslint-plugin": "^7.9.0",
-    "@typescript-eslint/parser": "^7.9.0",
+    "@typescript-eslint/eslint-plugin": "^7.11.0",
+    "@typescript-eslint/parser": "^7.11.0",
     "eslint": "^8.57.0",
     "eslint-plugin-jest": "^28.5.0",
-    "hap-nodejs": "^0.12.2-beta.3",
+    "hap-nodejs": "^0.12.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }
