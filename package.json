@@ -15,7 +15,7 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/homebridge/hap-client.git"
+    "url": "git+https://github.com/homebridge/hap-client.git"
   },
   "keywords": [
     "hap",
@@ -38,21 +38,21 @@
   },
   "homepage": "https://github.com/homebridge/hap-client/blob/latest#readme",
   "dependencies": {
-    "axios": "1.6.8",
+    "axios": "1.7.2",
     "bonjour-service": "1.2.1",
     "decamelize": "5.0.1",
     "inflection": "3.0.0",
     "source-map-support": "0.5.21"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.14.10",
     "@types/source-map-support": "^0.5.10",
-    "@typescript-eslint/eslint-plugin": "^7.7.0",
-    "@typescript-eslint/parser": "^7.7.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-jest": "^28.2.0",
-    "hap-nodejs": "^0.12.0",
+    "eslint-plugin-jest": "^28.6.0",
+    "hap-nodejs": "^1.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.3"
   }
 }
