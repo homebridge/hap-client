@@ -45,13 +45,13 @@
     "source-map-support": "0.5.21"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
+    "@types/node": "^20.14.11",
     "@types/source-map-support": "^0.5.10",
-    "@typescript-eslint/eslint-plugin": "^7.16.0",
-    "@typescript-eslint/parser": "^7.16.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@typescript-eslint/parser": "^7.16.1",
     "eslint": "^8.57.0",
     "eslint-plugin-jest": "^28.6.0",
-    "hap-nodejs": "^1.0.0",
+    "hap-nodejs": "^1.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"
   }
