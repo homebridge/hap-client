@@ -1,115 +1,131 @@
-import { Socket } from 'node:net';
+import type { Buffer } from 'node:buffer'
+import type { Socket } from 'node:net'
 
 export interface HapInstance {
-  name: string;
-  ipAddress: string | null;
-  port: number;
-  username: string;
-  connectionFailedCount: number;
-  services: ServiceType[];
+  name: string
+  ipAddress: string | null
+  port: number
+  username: string
+  connectionFailedCount: number
+  services: ServiceType[]
 }
 
 export interface HapEvInstance {
-  name: string;
-  ipAddress: string;
-  port: number;
-  username: string;
-  evCharacteristics?: { aid: number, iid: number, ev: boolean }[];
-  socket?: Socket;
+  name: string
+  ipAddress: string
+  port: number
+  username: string
+  evCharacteristics?: { aid: number, iid: number, ev: boolean }[]
+  socket?: Socket
 }
 
 export interface HapAccessoriesRespType {
   accessories: Array<{
-    instance: {
-      ipAddress: string;
-      port: number;
-      username: string;
-      name: string;
-    };
-    aid: number;
+    instance: HapInstance
+    aid: number
     services: Array<{
-      iid: number;
-      type: string;
-      primary: boolean;
-      hidden: boolean;
-      linked?: Array<number>;
+      iid: number
+      type: string
+      primary: boolean
+      hidden: boolean
+      linked?: Array<number>
       characteristics: Array<{
-        iid: number;
-        type: string;
-        description: string;
-        value: number | string | boolean;
-        format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary';
-        perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>;
-        unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds';
-        maxValue?: number;
-        minValue?: number;
-        minStep?: number;
-      }>;
-    }>;
-  }>;
+        iid: number
+        type: string
+        description: string
+        value: number | string | boolean
+        format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary'
+        perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>
+        unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds'
+        maxValue?: number
+        minValue?: number
+        minStep?: number
+      }>
+    }>
+  }>
 }
 
 export interface HapCharacteristicRespType {
   characteristics: {
-    aid: number;
-    iid: number;
-    value: number | string | boolean;
-  }[];
+    aid: number
+    iid: number
+    value: number | string | boolean
+  }[]
 }
 
 export interface ServiceType {
-  aid: number;
-  iid: number;
-  uuid: string;
-  type: string;
-  linked?: Array<number>;
+  aid: number
+  iid: number
+  uuid: string
+  type: string
+  linked?: Array<number>
   linkedServices?: {
-    [iid: number]: ServiceType;
-  };
-  hidden?: boolean;
-  humanType: string;
-  serviceName: string;
-  serviceCharacteristics: CharacteristicType[];
-  accessoryInformation: any;
-  refreshCharacteristics?: () => Promise<ServiceType>;
-  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
-  getCharacteristic?: (type: string) => CharacteristicType;
-  values: any;
-  instance: {
-    ipAddress: string;
-    port: number;
-    username: string;
-    name: string;
-  };
-  uniqueId?: string;
+    [iid: number]: ServiceType
+  }
+  hidden?: boolean
+  humanType: string
+  serviceName: string
+  serviceCharacteristics: CharacteristicType[]
+  accessoryInformation: any
+  refreshCharacteristics?: () => Promise<ServiceType>
+  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>
+  getCharacteristic?: (type: string) => CharacteristicType
+  values: any
+  instance: HapInstance
+  uniqueId?: string
 }
 
 export interface CharacteristicType {
-  aid: number;
-  iid: number;
-  uuid: string;
-  type: string;
-  serviceType: string;
-  serviceName: string;
-  description: string;
-  value: number | string | boolean;
-  format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary';
-  perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>;
-  unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds';
-  maxValue?: number;
-  minValue?: number;
-  minStep?: number;
-  canRead: boolean;
-  canWrite: boolean;
-  ev: boolean;
-  setValue?: (value: number | string | boolean) => Promise<CharacteristicType>;
-  getValue?: () => Promise<CharacteristicType>;
+  aid: number
+  iid: number
+  uuid: string
+  type: string
+  serviceType: string
+  serviceName: string
+  description: string
+  value: number | string | boolean
+  format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary'
+  perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>
+  unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds'
+  maxValue?: number
+  minValue?: number
+  minStep?: number
+  canRead: boolean
+  canWrite: boolean
+  ev: boolean
+  setValue?: (value: number | string | boolean) => Promise<CharacteristicType>
+  getValue?: () => Promise<CharacteristicType>
 }
 
 export interface AccessoryInformationProperties {
-  'Manufacturer': string;
-  'Model': string;
-  'Name': string;
-  'Serial Number': string;
-  'Firmware Revision': string;
+  'Manufacturer': string
+  'Model': string
+  'Name': string
+  'Serial Number': string
+  'Firmware Revision': string
+}
+
+export interface HttpMessageParserResult {
+  protocol: string | null
+  httpVersion: number | null
+  statusCode: number | null
+  statusMessage: string | null
+  method: string | null
+  url: string | null
+  headers: { [key: string]: string | number } | null
+  body: string | null
+  boundary: string | null
+  multipart: Array<{
+    headers: { [key: string]: string | number } | null
+    body: string | Buffer | null
+    meta: {
+      body: {
+        byteOffset: {
+          start: number | null
+          end: number | null
+        }
+      }
+    }
+  }> | null
+  additional: string | null
 }

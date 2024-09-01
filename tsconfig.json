@@ -1,23 +1,31 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "target": "ESNext",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "rootDir": "./src",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
     "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es2022",
-    "sourceMap": true,
+    "declarationMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
+    "preserveConstEnums": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
-  "lib": [
-    "es2017"
+  "include": [
+    "src/"
   ],
   "exclude": [
-    "server",
-    "portal",
+    "**/*.spec.ts",
     "scripts",
     "node_modules",
-    "./dist",
+    "./dist"
   ]
 }

@@ -3,22 +3,23 @@
  * https://github.com/NorthernMan54/Hap-Node-Client/blob/master/lib/eventedHttpClient.js
  */
 
-import { createConnection as netCreateConnection } from 'node:net';
-import { parse } from 'node:url';
+import type { HapEvInstance } from '../interfaces.js'
 
-import httpMessageParser from './httpParser';
+import { createConnection as netCreateConnection } from 'node:net'
 
-export const parseMessage = httpMessageParser;
+import httpMessageParser from './httpParser.js'
 
-export function createConnection(instance, pin: string, body) {
+export const parseMessage = httpMessageParser
+
+export function createConnection(instance: HapEvInstance, pin: string, body: { characteristics: { aid: number, iid: number, ev: boolean }[] | undefined }) {
   const client = netCreateConnection({
     host: instance.ipAddress,
     port: instance.port,
-  });
+  })
 
   client.write(_buildMessage({
     method: 'PUT',
-    url: 'http://' + instance.ipAddress + ':' + instance.port + '/characteristics',
+    url: `http://${instance.ipAddress}:${instance.port}/characteristics`,
     maxAttempts: 1, // (default) try 5 times
     headers: {
       'Content-Type': 'Application/json',
@@ -26,34 +27,34 @@ export function createConnection(instance, pin: string, body) {
       'connection': 'keep-alive',
     },
     body: JSON.stringify(body),
-  }));
+  }))
 
-  return client;
+  return client
 }
 
-function _headersToString(headers) {
-  let response = '';
+function _headersToString(headers: { [x: string]: any }) {
+  let response = ''
 
   for (const header of Object.keys(headers)) {
-    response = response + header + ': ' + headers[header] + '\r\n';
+    response = `${response + header}: ${headers[header]}\r\n`
   }
-  return (response);
+  return (response)
 }
 
-function _buildMessage(request) {
-  const context = parse(request.url);
-  let message;
+function _buildMessage(request: { method: any, url: any, maxAttempts?: number, headers: any, body: any }) {
+  const context = new URL(request.url)
+  let message
 
-  message = request.method + ' ' + context.pathname;
+  message = `${request.method} ${context.pathname}`
   if (context.search) {
-    message = message + context.search;
+    message = message + context.search
   }
-  message = message + ' HTTP/1.1\r\nHost: ' + context.host + '\r\n' + _headersToString(request.headers);
+  message = `${message} HTTP/1.1\r\nHost: ${context.host}\r\n${_headersToString(request.headers)}`
   if (request.body) {
-    message = message + 'Content-Length: ' + request.body.length + '\r\n\r\n' + request.body + '\r\n\r\n';
+    message = `${message}Content-Length: ${request.body.length}\r\n\r\n${request.body}\r\n\r\n`
   } else {
-    message = message + '\r\n\r\n';
+    message = `${message}\r\n\r\n`
   }
   // debug("Message ->", message);
-  return (message);
+  return (message)
 }

@@ -5,8 +5,12 @@
 
 // Borrowed and heavily modified from https://github.com/miguelmota/http-message-parser
 
-function httpMessageParser(message) {
-  const result = {
+/* eslint-disable node/prefer-global/buffer */
+
+import type { HttpMessageParserResult } from '../interfaces'
+
+function httpMessageParser(message: string | Buffer) {
+  const result: HttpMessageParserResult = {
     protocol: null,
     httpVersion: null,
     statusCode: null,
@@ -18,55 +22,55 @@ function httpMessageParser(message) {
     boundary: null,
     multipart: null,
     additional: null,
-  };
+  }
 
-  let messageString = '';
-  let headerNewlineIndex = 0;
-  let fullBoundary = null;
+  let messageString = ''
+  let headerNewlineIndex = 0
+  let fullBoundary: string | null = null
 
   if (httpMessageParser._isBuffer(message)) {
-    messageString = message.toString();
+    messageString = message.toString()
   } else if (typeof message === 'string') {
-    messageString = message;
-    message = httpMessageParser._createBuffer(messageString);
+    messageString = message
+    message = httpMessageParser._createBuffer(messageString)
   } else {
-    return result;
+    return result
   }
 
   /*
    * Strip extra return characters
    */
-  messageString = messageString.replace(/\r\n/gim, '\n');
+  messageString = messageString.replace(/\r\n/g, '\n');
 
   /*
    * Trim leading whitespace
    */
   (function () {
-    const firstNonWhitespaceRegex = /[\w-]+/gim;
-    const firstNonWhitespaceIndex = messageString.search(firstNonWhitespaceRegex);
+    const firstNonWhitespaceRegex = /[\w-]+/g
+    const firstNonWhitespaceIndex = messageString.search(firstNonWhitespaceRegex)
     if (firstNonWhitespaceIndex > 0) {
-      message = message.slice(firstNonWhitespaceIndex, message.length);
-      messageString = message.toString();
+      message = message.slice(firstNonWhitespaceIndex, message.length)
+      messageString = message.toString()
     }
   })();
 
   /* Parse request line
    */
   (function () {
-    const possibleRequestLine = messageString.split(/\n|\r\n/)[0];
-    const requestLineMatch = possibleRequestLine.match(httpMessageParser._requestLineRegex);
+    const possibleRequestLine = messageString.split(/\n|\r\n/)[0]
+    const requestLineMatch = possibleRequestLine.match(httpMessageParser._requestLineRegex)
 
     if (Array.isArray(requestLineMatch) && requestLineMatch.length > 1) {
-      result.protocol = requestLineMatch[1];
-      result.httpVersion = parseFloat(requestLineMatch[2]);
-      result.statusCode = parseInt(requestLineMatch[3], 10);
-      result.statusMessage = requestLineMatch[4];
+      result.protocol = requestLineMatch[1]
+      result.httpVersion = Number.parseFloat(requestLineMatch[2])
+      result.statusCode = Number.parseInt(requestLineMatch[3], 10)
+      result.statusMessage = requestLineMatch[4]
     } else {
-      const responseLineMath = possibleRequestLine.match(httpMessageParser._responseLineRegex);
+      const responseLineMath = possibleRequestLine.match(httpMessageParser._responseLineRegex)
       if (Array.isArray(responseLineMath) && responseLineMath.length > 1) {
-        result.method = responseLineMath[1];
-        result.url = responseLineMath[2];
-        result.httpVersion = parseFloat(responseLineMath[3]);
+        result.method = responseLineMath[1]
+        result.url = responseLineMath[2]
+        result.httpVersion = Number.parseFloat(responseLineMath[3])
       }
     }
   })();
@@ -74,25 +78,25 @@ function httpMessageParser(message) {
   /* Parse headers
    */
   (function () {
-    headerNewlineIndex = messageString.search(httpMessageParser._headerNewlineRegex);
+    headerNewlineIndex = messageString.search(httpMessageParser._headerNewlineRegex)
     if (headerNewlineIndex > -1) {
-      headerNewlineIndex = headerNewlineIndex + 1; // 1 for newline length
+      headerNewlineIndex = headerNewlineIndex + 1 // 1 for newline length
     } else {
       /* There's no line breaks so check if request line exists
-       * because the message might be all headers and no body
+       * because the message might be all headers and without a body
        */
       if (result.httpVersion) {
-        headerNewlineIndex = messageString.length;
+        headerNewlineIndex = messageString.length
       }
     }
 
-    const headersString = messageString.substr(0, headerNewlineIndex);
-    const headers = httpMessageParser._parseHeaders(headersString);
+    const headersString = messageString.substr(0, headerNewlineIndex)
+    const headers = httpMessageParser._parseHeaders(headersString)
 
     if (Object.keys(headers).length > 0) {
-      result.headers = headers;
+      result.headers = headers
 
-      // TOOD: extract boundary.
+      // TODO: extract boundary.
     }
   })();
 
@@ -100,12 +104,11 @@ function httpMessageParser(message) {
    */
   (function () {
     if (!result.boundary) {
-      const boundaryMatch = messageString.match(httpMessageParser._boundaryRegex);
+      const boundaryMatch = messageString.match(httpMessageParser._boundaryRegex)
 
       if (Array.isArray(boundaryMatch) && boundaryMatch.length) {
-        fullBoundary = boundaryMatch[0].replace(/[\r\n]+/gi, '');
-        const boundary = fullBoundary.replace(/^--/, '');
-        result.boundary = boundary;
+        fullBoundary = boundaryMatch[0].replace(/[\r\n]+/g, '')
+        result.boundary = fullBoundary.replace(/^--/, '')
       }
     }
   })();
@@ -113,35 +116,37 @@ function httpMessageParser(message) {
   /* Parse body
    */
   (function () {
-    let start = headerNewlineIndex;
-    let end = (result.headers && result.headers['Content-Length'] ? result.headers['Content-Length'] + start : messageString.length);
-    const firstBoundaryIndex = messageString.indexOf(fullBoundary);
+    let start = headerNewlineIndex
+    let end = result.headers && Object.prototype.hasOwnProperty.call(result.headers, 'Content-Length')
+      ? (result.headers['Content-Length'] as number) + start
+      : messageString.length
+    const firstBoundaryIndex = fullBoundary === null ? -1 : messageString.indexOf(fullBoundary)
 
     if (firstBoundaryIndex > -1 && result.boundary) {
-      start = headerNewlineIndex;
-      end = firstBoundaryIndex;
+      start = headerNewlineIndex
+      end = firstBoundaryIndex
     }
 
     if (headerNewlineIndex > -1) {
-      const body = messageString.slice(start, end);
-      result.additional = messageString.slice(end); // Pass back any unparsed data for running thru again
+      const body = messageString.slice(start, end)
+      result.additional = messageString.slice(end) // Pass back any unparsed data for running thru again
       // console.log("Lengths: total %s -> start %s -> end %s -> final %s", messageString.length, start, end, body.length);
 
       if (body && body.length) {
-        if ((result.headers && result.headers['Content-Type'] === 'application/hap+json') ||
-          (result.headers && result.headers['Content-Type'] === 'application/json')) {
+        if ((result.headers && result.headers['Content-Type'] === 'application/hap+json')
+          || (result.headers && result.headers['Content-Type'] === 'application/json')) {
           // JSON.parse JSON message's
           try {
             if (result.headers['Content-Length']) {
-              result.body = body;
+              result.body = body
             } else {
-              result.body = body.split('\n')[1];
+              result.body = body.split('\n')[1]
             }
           } catch (err) {
 
           }
         } else {
-          result.body = body;
+          result.body = body
         }
       }
     }
@@ -150,18 +155,17 @@ function httpMessageParser(message) {
   /* Parse multipart sections
    */
   (function () {
-    if (result.boundary) {
-      const multipartStart = messageString.indexOf(fullBoundary) + fullBoundary.length;
-      const multipartEnd = messageString.lastIndexOf(fullBoundary);
-      const multipartBody = messageString.substr(multipartStart, multipartEnd);
-      const splitRegex = new RegExp('^' + fullBoundary + '.*[\n\r]?$', 'gm');
-      const parts = multipartBody.split(splitRegex);
+    if (result.boundary && fullBoundary) {
+      const multipartStart = messageString.indexOf(fullBoundary) + fullBoundary.length
+      const multipartEnd = messageString.lastIndexOf(fullBoundary)
+      const multipartBody = messageString.substring(multipartStart, multipartEnd)
+      const splitRegex = new RegExp(`^${fullBoundary}.*[\n\r]?$`, 'gm')
+      const parts = multipartBody.split(splitRegex)
 
-      result.multipart = parts.filter(httpMessageParser._isTruthy).map(function (part, i) {
-        // tslint:disable-next-line: no-shadowed-variable
+      result.multipart = parts.filter(httpMessageParser._isTruthy).map((part, i) => {
         const result = {
-          headers: null,
-          body: null,
+          headers: null as { [key: string]: string | number } | null,
+          body: '' as string | Buffer | null,
           meta: {
             body: {
               byteOffset: {
@@ -170,136 +174,134 @@ function httpMessageParser(message) {
               },
             },
           },
-        };
+        }
 
-        const newlineRegex = /\n\n|\r\n\r\n/gim;
-        let newlineIndex = 0;
-        let newlineMatch = newlineRegex.exec(part);
-        let body = null;
+        const newlineRegex = /\n\n|\r\n\r\n/g
+        let newlineIndex = 0
+        let newlineMatch = newlineRegex.exec(part)
+        let body = null
 
         if (newlineMatch) {
-          newlineIndex = newlineMatch.index;
+          newlineIndex = newlineMatch.index
           if (newlineMatch.index <= 0) {
-            newlineMatch = newlineRegex.exec(part);
+            newlineMatch = newlineRegex.exec(part)
             if (newlineMatch) {
-              newlineIndex = newlineMatch.index;
+              newlineIndex = newlineMatch.index
             }
           }
         }
 
-        const possibleHeadersString = part.substr(0, newlineIndex);
+        const possibleHeadersString = part.substring(0, newlineIndex)
 
-        let startOffset = null;
-        let endOffset = null;
+        let startOffset = null
+        let endOffset = null
 
         if (newlineIndex > -1) {
-          const headers = httpMessageParser._parseHeaders(possibleHeadersString);
+          const headers = httpMessageParser._parseHeaders(possibleHeadersString)
           if (Object.keys(headers).length > 0) {
-            result.headers = headers;
+            result.headers = headers
 
-            const boundaryIndexes = [];
+            const boundaryIndexes: any[] = []
             for (let j = 0; j >= 0;) {
-              j = message.indexOf(fullBoundary, j);
+              j = message.indexOf(fullBoundary as string, j)
 
               if (j >= 0) {
-                boundaryIndexes.push(j);
-                j += fullBoundary.length;
+                boundaryIndexes.push(j)
+                j += (fullBoundary as string).length
               }
             }
 
-            const boundaryNewlineIndexes = [];
-            boundaryIndexes.slice(0, boundaryIndexes.length - 1).forEach(function (m, k) {
-              const partBody = message.slice(boundaryIndexes[k], boundaryIndexes[k + 1]).toString();
-              // tslint:disable-next-line: no-shadowed-variable
-              let headerNewlineIndex = partBody.search(/\n\n|\r\n\r\n/gim) + 2;
-              headerNewlineIndex = boundaryIndexes[k] + headerNewlineIndex;
-              boundaryNewlineIndexes.push(headerNewlineIndex);
-            });
+            const boundaryNewlineIndexes: any[] = []
+            boundaryIndexes.slice(0, boundaryIndexes.length - 1).forEach((m, k) => {
+              const partBody = message.slice(boundaryIndexes[k], boundaryIndexes[k + 1]).toString()
+              let headerNewlineIndex = partBody.search(/\n\n|\r\n\r\n/g) + 2
+              headerNewlineIndex = boundaryIndexes[k] + headerNewlineIndex
+              boundaryNewlineIndexes.push(headerNewlineIndex)
+            })
 
-            startOffset = boundaryNewlineIndexes[i];
-            endOffset = boundaryIndexes[i + 1];
-            body = message.slice(startOffset, endOffset);
+            startOffset = boundaryNewlineIndexes[i]
+            endOffset = boundaryIndexes[i + 1]
+            body = message.slice(startOffset, endOffset)
           } else {
-            body = part;
+            body = part
           }
         } else {
-          body = part;
+          body = part
         }
 
-        result.body = body;
-        result.meta.body.byteOffset.start = startOffset;
-        result.meta.body.byteOffset.end = endOffset;
+        result.body = body
+        result.meta.body.byteOffset.start = startOffset
+        result.meta.body.byteOffset.end = endOffset
 
-        return result;
-      });
+        return result
+      })
     }
-  })();
+  })()
 
-  return result;
+  return result
 }
 
-httpMessageParser._isTruthy = function _isTruthy(v) {
-  return !!v;
-};
+httpMessageParser._isTruthy = function _isTruthy(v: any) {
+  return !!v
+}
 
-httpMessageParser._isNumeric = function _isNumeric(v) {
-  if (typeof v === 'number' && !isNaN(v)) {
-    return true;
+httpMessageParser._isNumeric = function _isNumeric(v: any) {
+  if (typeof v === 'number' && !Number.isNaN(v)) {
+    return true
   }
 
-  v = (v || '').toString().trim();
+  v = (v || '').toString().trim()
 
   if (!v) {
-    return false;
+    return false
   }
 
-  return !isNaN(v);
-};
+  return !Number.isNaN(v)
+}
 
-httpMessageParser._isBuffer = function (item) {
-  return ((httpMessageParser._isNodeBufferSupported() &&
-    typeof global === 'object' &&
-    global.Buffer.isBuffer(item)) ||
-    (item instanceof Object &&
-      item._isBuffer));
-};
+httpMessageParser._isBuffer = function (item: any) {
+  return ((httpMessageParser._isNodeBufferSupported()
+    && typeof globalThis === 'object'
+    && globalThis.Buffer.isBuffer(item))
+    || (item instanceof Object
+    && item._isBuffer))
+}
 
 httpMessageParser._isNodeBufferSupported = function () {
-  return (typeof global === 'object' &&
-    typeof global.Buffer === 'function' &&
-    typeof global.Buffer.isBuffer === 'function');
-};
+  return (typeof globalThis === 'object'
+    && typeof globalThis.Buffer === 'function'
+    && typeof globalThis.Buffer.isBuffer === 'function')
+}
 
-httpMessageParser._parseHeaders = function _parseHeaders(body) {
-  const headers = {};
+httpMessageParser._parseHeaders = function _parseHeaders(body: string | Buffer) {
+  const headers = {}
 
   if (typeof body !== 'string') {
-    return headers;
+    return headers
   }
 
-  body.split(/[\r\n]/).forEach(function (string) {
-    const match = string.match(/([\w-]+):\s*(.*)/i);
+  body.split(/[\r\n]/).forEach((string) => {
+    const match = string.match(/([\w-]+):\s*(.*)/)
 
     if (Array.isArray(match) && match.length === 3) {
-      const key = match[1];
-      const value = match[2];
+      const key = match[1]
+      const value = match[2]
 
-      headers[key] = httpMessageParser._isNumeric(value) ? Number(value) : value;
+      // @ts-expect-error - No index signature with a parameter of type string was found on type
+      headers[key] = httpMessageParser._isNumeric(value) ? Number(value) : value
     }
-  });
+  })
 
-  return headers;
-};
+  return headers
+}
 
-httpMessageParser._requestLineRegex = /(HTTP|EVENT)\/(1\.0|1\.1|2\.0)\s+(\d+)\s+([\w\s-_]+)/i;
-httpMessageParser._responseLineRegex = /(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|TRACE|CONNECT)\s+(.*)\s+HTTP\/(1\.0|1\.1|2\.0)/i;
-// httpMessageParser._headerNewlineRegex = /^[\r\n]+/gim;
-httpMessageParser._headerNewlineRegex = /^[\r\n]+/gim;
-httpMessageParser._boundaryRegex = /(\n|\r\n)+--[\w-]+(\n|\r\n)+/g;
+httpMessageParser._requestLineRegex = /(HTTP|EVENT)\/(1\.0|1\.1|2\.0)\s+(\d+)\s+([\w\s-]+)/i
+httpMessageParser._responseLineRegex = /(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|TRACE|CONNECT)\s+(\S+)\s+HTTP\/(1\.[01]|2\.0)/i
+httpMessageParser._headerNewlineRegex = /^[\r\n]+/gm
+httpMessageParser._boundaryRegex = /(\n|\r\n)+--[\w-]+(\n|\r\n)+/g
 
-httpMessageParser._createBuffer = function (data) {
-  // tslint:disable-next-line: deprecation
-  return new Buffer(data);
-};
+httpMessageParser._createBuffer = function (data: string) {
+  return Buffer.from(data)
+}
 
-export default httpMessageParser;
+export default httpMessageParser
