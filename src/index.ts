@@ -40,6 +40,9 @@ export class HapClient extends EventEmitter {
     Characteristics.Name,
   ]
 
+  private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined
+  private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined
+
   constructor(opts: {
     pin: string
     logger?: any
@@ -69,7 +72,7 @@ export class HapClient extends EventEmitter {
 
     this.instances = []
 
-    setTimeout(() => {
+    this.resetInstancePoolTimeout = setTimeout(() => {
       this.refreshInstances()
     }, 6000)
   }
@@ -85,6 +88,21 @@ export class HapClient extends EventEmitter {
     }
   }
 
+  /**
+   * Destroy the HapClient instance, used for testing
+   */
+  public destroy() {
+    this.browser?.stop()
+
+    this.discoveryInProgress = false
+    if (this.resetInstancePoolTimeout) {
+      clearTimeout(this.resetInstancePoolTimeout)
+    }
+    if (this.startDiscoveryTimeout) {
+      clearTimeout(this.startDiscoveryTimeout)
+    }
+  }
+
   private async startDiscovery() {
     this.discoveryInProgress = true
 
@@ -97,7 +115,7 @@ export class HapClient extends EventEmitter {
     this.debug(`[HapClient] Discovery :: Started`)
 
     // stop discovery after 20 seconds
-    setTimeout(() => {
+    this.startDiscoveryTimeout = setTimeout(() => {
       this.browser?.stop()
       this.debug(`[HapClient] Discovery :: Ended`)
       this.discoveryInProgress = false

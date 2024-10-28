@@ -39,7 +39,8 @@
     "gen": "node --no-warnings=ExperimentalWarning --loader ts-node/esm scripts/gen-hap-types.ts",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
-    "prepublishOnly": "npm run lint && npm run build"
+    "prepublishOnly": "npm run lint && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 0"
   },
   "dependencies": {
     "axios": "1.7.7",
@@ -50,7 +51,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^3.0.0",
-    "@types/node": "^22.5.2",
+    "@types/node": "^22.8.2",
     "@types/source-map-support": "^0.5.10",
     "eslint": "^9.9.1",
     "eslint-plugin-format": "^0.1.2",
