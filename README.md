@@ -12,7 +12,7 @@
 
 </span>
 
-A client for an insecure HAP-NodeJS instance.
+A typescript based client for an insecure HAP-NodeJS instance.
 
 ## Credits
 
