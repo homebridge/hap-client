@@ -12,7 +12,7 @@
 
 </span>
 
-A typescript based client for an insecure HAP-NodeJS instance.
+A typescript based client for an insecure HAP-NodeJS instance. Used to access and control homebridge exposed accessories and devices.
 
 ## Credits
 
