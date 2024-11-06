@@ -149,7 +149,7 @@ export class HapClient extends EventEmitter {
           this.instances[existingInstanceIndex].port = instance.port
           this.instances[existingInstanceIndex].name = instance.name
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
-          + `(${instance.username})] Instance Updated`)
+            + `(${instance.username})] Instance Updated`)
           this.emit('instance-discovered', instance)
         }
 
@@ -241,9 +241,10 @@ export class HapClient extends EventEmitter {
     return accessories
   }
 
-  public async monitorCharacteristics() {
-    const services = await this.getAllServices()
-    return new HapMonitor(this.logger, this.debug.bind(this), this.pin, services)
+  public async monitorCharacteristics(services?: ServiceType[]) {
+    // If `services` is not provided, retrieve all services
+    services = services ?? await this.getAllServices();
+    return new HapMonitor(this.logger, this.debug.bind(this), this.pin, services);
   }
 
   public async getAllServices() {
@@ -451,10 +452,10 @@ export class HapClient extends EventEmitter {
     } catch (e: any) {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-        + `Failed to set value for ${service.serviceName}.`)
+          + `Failed to set value for ${service.serviceName}.`)
         if ([401, 470].includes(e.response?.status)) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
+            + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
           throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
             + `is set to ${this.pin}.`)
         } else {
