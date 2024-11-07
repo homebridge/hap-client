@@ -20,12 +20,7 @@ export interface HapEvInstance {
 
 export interface HapAccessoriesRespType {
   accessories: Array<{
-    instance: {
-      ipAddress: string;
-      port: number;
-      username: string;
-      name: string;
-    };
+    instance: HapInstance;
     aid: number;
     services: Array<{
       iid: number;
