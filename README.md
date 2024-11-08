@@ -19,7 +19,7 @@ A client for an insecure HAP-NodeJS instance.
 - homebridge-config-ui-x
 - homebridge-gsh
 
-(NPM Dependants)[https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents]
+- [NPM Dependants](https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents)
 
 ## Credits
 
