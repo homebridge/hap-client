@@ -12,7 +12,7 @@
 
 </span>
 
-A client for an insecure HAP-NodeJS instance.
+A client for an insecure HAP-NodeJS instance. Provides a Typescript based interface based on the homekit accessory protocol, allowing the creation of clients able to connect to and control Homebridge devices.
 
 # Dependant Applications
 
