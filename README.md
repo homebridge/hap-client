@@ -14,6 +14,13 @@
 
 A client for an insecure HAP-NodeJS instance.
 
+# Dependant Applications
+
+- homebridge-config-ui-x
+- homebridge-gsh
+
+(NPM Dependants)[https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents]
+
 ## Credits
 
 - HAP Client was originally created by [oznu](https://github.com/oznu).

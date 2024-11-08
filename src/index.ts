@@ -37,8 +37,9 @@ export class HapClient extends EventEmitter {
     Characteristics.Name,
   ];
 
-  private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined
-  private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined
+  private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined;
+  private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined;
+  private hapMonitor: HapMonitor;
 
   constructor(opts: {
     pin: string;
@@ -60,6 +61,9 @@ export class HapClient extends EventEmitter {
     }
   }
 
+  /**
+   * resetInstancePool - Reset the instance pool, useful for when a Homebridge instance is restarted
+   */
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser.stop();
@@ -74,6 +78,9 @@ export class HapClient extends EventEmitter {
     }, 6000);
   }
 
+  /**
+   * refreshInstances - Refresh the instance pool
+   */
   public refreshInstances() {
     if (!this.discoveryInProgress) {
       this.startDiscovery();
@@ -228,12 +235,24 @@ export class HapClient extends EventEmitter {
     return accessories;
   }
 
+  /**
+   * monitorCharacteristics
+   * @param services - Optional array of services to monitor
+   * 
+   * Creates connections to all Homebridge instances and monitors all characteristics for changes.  Will emit `service-update` events when characteristics change, which can be listened to.
+   * @returns 
+   */
   public async monitorCharacteristics(services?: ServiceType[]) {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices();
-    return new HapMonitor(this.logger, this.debug.bind(this), this.pin, services);
+    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), this.pin, services);
+    return this.hapMonitor;
   }
 
+  /**
+   * 
+   * @returns Array of all services from all Homebridge instances
+   */
   public async getAllServices() {
     /* Get Accessories from HAP */
     const accessories = await this.getAccessories();
@@ -452,11 +471,12 @@ export class HapClient extends EventEmitter {
   }
 
   /**
- * Destroy the HapClient instance, used for testing
- */
-  public destroy() {
-    this.browser?.stop()
-    this.discoveryInProgress = false
+   * Destroy the HAP client, used by testing when shutting down
+   */
+  public async destroy() {
+    this.browser?.stop();
+    this.hapMonitor?.finish();
+    this.discoveryInProgress = false;
     if (this.resetInstancePoolTimeout) {
       clearTimeout(this.resetInstancePoolTimeout)
     }
