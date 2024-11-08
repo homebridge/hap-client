@@ -20,12 +20,7 @@ export interface HapEvInstance {
 
 export interface HapAccessoriesRespType {
   accessories: Array<{
-    instance: {
-      ipAddress: string;
-      port: number;
-      username: string;
-      name: string;
-    };
+    instance: HapInstance;
     aid: number;
     services: Array<{
       iid: number;
@@ -75,12 +70,7 @@ export interface ServiceType {
   setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
   getCharacteristic?: (type: string) => CharacteristicType;
   values: any;
-  instance: {
-    ipAddress: string;
-    port: number;
-    username: string;
-    name: string;
-  };
+  instance: HapInstance;
   uniqueId?: string;
 }
 
