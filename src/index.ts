@@ -42,6 +42,7 @@ export class HapClient extends EventEmitter {
 
   private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined
   private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined
+  private hapMonitor: HapMonitor | undefined = undefined
 
   constructor(opts: {
     pin: string
@@ -63,6 +64,9 @@ export class HapClient extends EventEmitter {
     }
   }
 
+  /**
+   * resetInstancePool - Reset the instance pool, useful for when a Homebridge instance is restarted
+   */
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser?.stop()
@@ -77,6 +81,9 @@ export class HapClient extends EventEmitter {
     }, 6000)
   }
 
+  /**
+   * refreshInstances - Refresh the instance pool
+   */
   public refreshInstances() {
     if (!this.discoveryInProgress) {
       this.startDiscovery()
@@ -85,21 +92,6 @@ export class HapClient extends EventEmitter {
         this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`)
         this.browser?.update()
       } catch (e) { }
-    }
-  }
-
-  /**
-   * Destroy the HapClient instance, used for testing
-   */
-  public destroy() {
-    this.browser?.stop()
-
-    this.discoveryInProgress = false
-    if (this.resetInstancePoolTimeout) {
-      clearTimeout(this.resetInstancePoolTimeout)
-    }
-    if (this.startDiscoveryTimeout) {
-      clearTimeout(this.startDiscoveryTimeout)
     }
   }
 
@@ -149,7 +141,7 @@ export class HapClient extends EventEmitter {
           this.instances[existingInstanceIndex].port = instance.port
           this.instances[existingInstanceIndex].name = instance.name
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
-          + `(${instance.username})] Instance Updated`)
+            + `(${instance.username})] Instance Updated`)
           this.emit('instance-discovered', instance)
         }
 
@@ -241,12 +233,24 @@ export class HapClient extends EventEmitter {
     return accessories
   }
 
+  /**
+   * monitorCharacteristics
+   * @param services - Optional array of services to monitor
+   *
+   * Creates connections to all Homebridge instances and monitors all characteristics for changes.  Will emit `service-update` events when characteristics change, which can be listened to.
+   * @returns HapMonitor instance
+   */
   public async monitorCharacteristics(services?: ServiceType[]) {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices()
-    return new HapMonitor(this.logger, this.debug.bind(this), this.pin, services)
+    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), this.pin, services)
+    return this.hapMonitor
   }
 
+  /**
+   *
+   * @returns Array of all services from all Homebridge instances
+   */
   public async getAllServices() {
     /* Get Accessories from HAP */
     const accessories = await this.getAccessories()
@@ -452,10 +456,10 @@ export class HapClient extends EventEmitter {
     } catch (e: any) {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-        + `Failed to set value for ${service.serviceName}.`)
+          + `Failed to set value for ${service.serviceName}.`)
         if ([401, 470].includes(e.response?.status)) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
+            + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
           throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
             + `is set to ${this.pin}.`)
         } else {
@@ -471,5 +475,20 @@ export class HapClient extends EventEmitter {
 
   private humanizeString(string: string) {
     return titleize(decamelize(string))
+  }
+
+  /**
+   * Destroy the HAP client, used by testing when shutting down
+   */
+  public destroy() {
+    this.browser?.stop()
+    this.hapMonitor?.finish()
+    this.discoveryInProgress = false
+    if (this.resetInstancePoolTimeout) {
+      clearTimeout(this.resetInstancePoolTimeout)
+    }
+    if (this.startDiscoveryTimeout) {
+      clearTimeout(this.startDiscoveryTimeout)
+    }
   }
 }

@@ -12,7 +12,13 @@
 
 </span>
 
-A typescript based client for an insecure HAP-NodeJS instance. Used to access and control homebridge exposed accessories and devices.
+A client for an insecure HAP-NodeJS instance. Provides a Typescript based interface based on the homekit accessory protocol, allowing the creation of clients able to connect to and control Homebridge devices.
+
+# Dependant Applications
+
+- homebridge-config-ui-x
+- homebridge-gsh
+- [NPM Dependants](https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents)
 
 ## Credits
 

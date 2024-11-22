@@ -8,6 +8,13 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - Updated dependencies, regenerate HAP types
 
+## v2.0.4 (2024-11-07)
+
+### Changed
+
+- Added public method destroy, to be used for testing
+- Update public method monitorCharacteristics to allow passing of a filtered services array.
+
 ## v2.0.2 (2024-08-31)
 
 ### Changed

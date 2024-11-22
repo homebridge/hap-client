@@ -4,6 +4,9 @@ import { EventEmitter } from 'node:events'
 
 import { createConnection, parseMessage } from './eventedHttpClient/index.js'
 
+/**
+ * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
+ */
 export class HapMonitor extends EventEmitter {
   private readonly pin
   private readonly evInstances: HapEvInstance[]
