@@ -41,7 +41,7 @@ export class HapMonitor extends EventEmitter {
         if (message.statusCode === 401) {
           if (this.logger) {
             this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
-            + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`)
+              + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`)
           }
         }
 
@@ -51,7 +51,7 @@ export class HapMonitor extends EventEmitter {
               const body = JSON.parse(message.body)
               if (body.characteristics && body.characteristics.length) {
                 this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
-                + `Got Event: ${JSON.stringify(body.characteristics)}`)
+                  + `Got Event: ${JSON.stringify(body.characteristics)}`)
 
                 const response = body.characteristics.map((c: CharacteristicType) => { // eslint-disable-line array-callback-return
                   // find the matching service for each characteristic

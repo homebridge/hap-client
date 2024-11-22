@@ -263,7 +263,7 @@ httpMessageParser._isBuffer = function (item: any) {
   return ((httpMessageParser._isNodeBufferSupported()
     && typeof globalThis === 'object'
     && globalThis.Buffer.isBuffer(item))
-    || (item instanceof Object
+  || (item instanceof Object
     && item._isBuffer))
 }
 
