@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 
 import axios from 'axios';
+import Bonjour, { Browser, Service } from 'bonjour-service';
 import * as decamelize from 'decamelize';
 import { titleize } from 'inflection';
-import Bonjour, { Browser, Service } from 'bonjour-service'
 
-import { Services, Characteristics } from './hap-types';
-import { toLongFormUUID } from './uuid';
-import { HapMonitor } from './monitor';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType, AccessoryInformationProperties } from './interfaces';
 import 'source-map-support/register';
+import { Characteristics, Services } from './hap-types';
+import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ServiceType } from './interfaces';
+import { HapMonitor } from './monitor';
+import { toLongFormUUID } from './uuid';
 
 export * from './interfaces';
 
@@ -401,6 +401,7 @@ export class HapClient extends EventEmitter {
       resp.characteristics.forEach((c) => {
         const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid);
         characteristic.value = c.value;
+        service.values[characteristic.type] = c.value;
       });
 
     } catch (e) {
@@ -420,12 +421,21 @@ export class HapClient extends EventEmitter {
 
       const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
       characteristic.value = resp.characteristics[0].value;
+      service.values[characteristic.type] = resp.characteristics[0].value;
 
       return characteristic;
     } catch (e) {
       this.debug(e);
       this.logger.log(`Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
     }
+  }
+
+  async setCharacteristicByType(service: ServiceType, type: string, value: number | string | boolean) {
+    const characteristic = service.serviceCharacteristics.find(x => x.type === type);
+    if (!characteristic) {
+      throw new Error(`Characteristic ${type} not found in service ${service.serviceName}`);
+    }
+    return this.setCharacteristic(service, characteristic.iid, value);
   }
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
