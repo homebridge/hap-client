@@ -351,6 +351,10 @@ export class HapClient extends EventEmitter {
             return this.setCharacteristic.bind(this)(service, iid, value);
           };
 
+          service.setCharacteristicByType = (type: string, value: number | string | boolean) => {
+            return this.setCharacteristicByType.bind(this)(service, type, value);
+          };
+
           /* Helper function to returns a characteristic by it's type name */
           service.getCharacteristic = (type: string) => {
             return service.serviceCharacteristics.find(c => c.type === type);
