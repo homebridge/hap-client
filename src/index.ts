@@ -8,7 +8,7 @@ import { titleize } from 'inflection';
 
 import 'source-map-support/register';
 import { Characteristics, Services } from './hap-types';
-import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ServiceType } from './interfaces';
+import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ResourceRequestType, ServiceType } from './interfaces';
 import { HapMonitor } from './monitor';
 import { toLongFormUUID } from './uuid';
 
@@ -360,6 +360,11 @@ export class HapClient extends EventEmitter {
             return service.serviceCharacteristics.find(c => c.type === type);
           };
 
+          if (service.type === 'CameraRTPStreamManagement') {
+            service.getResource = (body: ResourceRequestType) => {
+              return this.getResource.bind(this)(service, body);
+            };
+          }
           service.serviceCharacteristics.forEach((c) => {
             /* Helper function to set the value of a characteristic */
             c.setValue = async (value: number | string | boolean) => {
@@ -473,6 +478,39 @@ export class HapClient extends EventEmitter {
         } else {
           this.logger.error(e.message);
           throw new Error(`Failed to control accessory: ${e.message}`);
+        }
+      } else {
+        console.log(e);
+      }
+    }
+  }
+
+  async getResource(service: ServiceType, body: ResourceRequestType) {
+    try {
+      const image = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`,
+        {
+          ...body, aid: service.aid
+        },
+        {
+          headers: {
+            Authorization: this.pin,
+          },
+        }
+      );
+      console.log(image);
+      return image;
+    } catch (e) {
+      if (this.logger) {
+        this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Failed to set value for ${service.serviceName}.`);
+        if (e.response && e.response.status === 470 || e.response.status === 401) {
+          this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+            `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+          throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+            `is set to ${this.pin}.`);
+        } else {
+          this.logger.error(e.message);
+          throw new Error(`Failed to request resource: ${e.message}`);
         }
       } else {
         console.log(e);
