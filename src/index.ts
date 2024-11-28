@@ -328,7 +328,7 @@ export class HapClient extends EventEmitter {
             uuid: s.type,
             type: Services[s.type],
             humanType: this.humanizeString(Services[s.type]),
-            serviceName: serviceName.value.toString(),
+            serviceName: (serviceName.value.toString().length ? serviceName.value.toString() : accessoryInformation.Name),
             serviceCharacteristics,
             accessoryInformation,
             values: {},
