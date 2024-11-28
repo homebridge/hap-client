@@ -487,7 +487,7 @@ export class HapClient extends EventEmitter {
 
   async getResource(service: ServiceType, body: ResourceRequestType) {
     try {
-      const image = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`,
+      const resp: any = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`,
         {
           ...body, aid: service.aid
         },
@@ -497,12 +497,22 @@ export class HapClient extends EventEmitter {
           },
         }
       );
-      console.log(image);
-      return image;
+      if (resp.status === 200) {
+        return resp.data;
+      } else {
+        if (this.logger) {
+          this.logger.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+            `Failed to request resource from accessory ${service.serviceName}. Response status Code ${resp.status}`);
+        } else {
+          console.log(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+            `Failed to request resource from accessory ${service.serviceName}.  Response status Code ${resp.status}`)
+        }
+      }
+      return;
     } catch (e) {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-          `Failed to set value for ${service.serviceName}.`);
+          `Failed to request resource from accessory ${service.serviceName}.`);
         if (e.response && e.response.status === 470 || e.response.status === 401) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
             `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
