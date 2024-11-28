@@ -492,6 +492,7 @@ export class HapClient extends EventEmitter {
           ...body, aid: service.aid
         },
         {
+          responseType: 'arraybuffer',
           headers: {
             Authorization: this.pin,
           },
