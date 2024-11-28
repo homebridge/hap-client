@@ -70,7 +70,7 @@ export interface ServiceType {
   setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
   setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<ServiceType>;
   getCharacteristic?: (type: string) => CharacteristicType;
-  getResource: (body: ResourceRequestType) => Promise<ServiceType>;
+  getResource?: (body: ResourceRequestType) => Promise<ServiceType>;
   values: any;
   instance: HapInstance;
   uniqueId?: string;
