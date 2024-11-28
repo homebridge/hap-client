@@ -10,6 +10,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - Added refresh of 'values' field when refreshServiceCharacteristics or getCharacteristic is executed
 - Added new setCharacteristic option, setCharacteristicByType which allows finding the characteristic by type.
 - Added new getResource request to retrieve snapshot images from camera's
+- Minor tweak to serviceName, and if the name is blank, use the name value from Accessory Information
 
 ## v2.0.4 (2024-11-07)
 
