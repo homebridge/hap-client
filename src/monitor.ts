@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
-import { ServiceType, HapEvInstance } from './interfaces';
 import { createConnection, parseMessage } from './eventedHttpClient';
+import { HapEvInstance, ServiceType } from './interfaces';
 
 /**
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
@@ -75,6 +75,18 @@ export class HapMonitor extends EventEmitter {
             // do nothing
           }
         }
+      });
+      let closeTimeout: NodeJS.Timeout | null = null;
+      instance.socket.on('close', (data) => {
+        this.emit('monitor-close', data);
+        if (closeTimeout) {
+          clearTimeout(closeTimeout); // Clear the existing timeout
+        }
+        closeTimeout = setTimeout(() => {
+          this.finish();
+          this.start();
+          closeTimeout = null; // Reset the timeout
+        }, 10000); // 10-second debounce period
       });
     }
   }

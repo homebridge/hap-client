@@ -470,7 +470,7 @@ export class HapClient extends EventEmitter {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
           `Failed to set value for ${service.serviceName}.`);
-        if (e.response && e.response.status === 470 || e.response.status === 401) {
+        if (e.response && e.response?.status === 470 || e.response?.status === 401) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
             `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
           throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
@@ -514,7 +514,7 @@ export class HapClient extends EventEmitter {
       if (this.logger) {
         this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
           `Failed to request resource from accessory ${service.serviceName}.`);
-        if (e.response && e.response.status === 470 || e.response.status === 401) {
+        if (e.response && e.response?.status === 470 || e.response?.status === 401) {
           this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
             `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
           throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
