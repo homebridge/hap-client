@@ -30,64 +30,72 @@ export class HapMonitor extends EventEmitter {
 
   start() {
     for (const instance of this.evInstances) {
-      instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics });
+      try {
+        instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics });
 
-      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`);
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`);
 
-      instance.socket.on('data', (data) => {
-        const message = parseMessage(data);
+        instance.socket.on('data', (data) => {
+          const message = parseMessage(data);
 
-        if (message.statusCode === 401) {
-          if (this.logger) {
-            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-              `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          }
-        }
-
-        if (message.protocol === 'EVENT') {
-          try {
-            const body = JSON.parse(message.body);
-            if (body.characteristics && body.characteristics.length) {
+          if (message.statusCode === 401) {
+            if (this.logger) {
               this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-                `Got Event: ${JSON.stringify(body.characteristics)}`);
-
-              const response = body.characteristics.map((c) => {
-                // find the matching service for each characteristics
-                const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username);
-                const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid));
-
-                if (service) {
-                  // find the correct characteristic and update it
-                  const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid);
-                  if (characteristic) {
-                    characteristic.value = c.value;
-                    service.values[characteristic.type] = c.value;
-                    return service;
-                  }
-                }
-
-              });
-
-              // push update to listeners
-              this.emit('service-update', response.filter(x => x));
+                `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
             }
-          } catch (e) {
-            // do nothing
           }
-        }
-      });
-      let closeTimeout: NodeJS.Timeout | null = null;
-      instance.socket.on('close', (data) => {
-        this.emit('monitor-close', data);
-        if (closeTimeout) {
-          clearTimeout(closeTimeout); // Clear the existing timeout
-        }
-        closeTimeout = setTimeout(() => {
-          this.finish();
-          this.start();
-          closeTimeout = null; // Reset the timeout
-        }, 10000); // 10-second debounce period
-      });
+
+          if (message.protocol === 'EVENT') {
+            try {
+              const body = JSON.parse(message.body);
+              if (body.characteristics && body.characteristics.length) {
+                this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+                  `Got Event: ${JSON.stringify(body.characteristics)}`);
+
+                const response = body.characteristics.map((c) => {
+                  // find the matching service for each characteristics
+                  const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username);
+                  const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid));
+
+                  if (service) {
+                    // find the correct characteristic and update it
+                    const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid);
+                    if (characteristic) {
+                      characteristic.value = c.value;
+                      service.values[characteristic.type] = c.value;
+                      return service;
+                    }
+                  }
+
+                });
+
+                // push update to listeners
+                this.emit('service-update', response.filter(x => x));
+              }
+            } catch (e) {
+              // do nothing
+            }
+          }
+        });
+        let closeTimeout = null;
+        instance.socket.on('close', (data) => {
+          this.emit('monitor-close', data);
+          if (!closeTimeout) {
+            closeTimeout = setTimeout(() => {
+              this.finish();
+              this.start();
+              closeTimeout = null;
+            }, 10000);
+          }
+        });
+        instance.socket.on('error', (data) => {
+          this.emit('monitor-error', data);
+          this.debug(`ERROR: monitor-error ${data}`);
+        });
+      } catch (e) {
+        this.debug(e);
+        this.logger.log(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
+      }
     }
   }
 
@@ -96,6 +104,7 @@ export class HapMonitor extends EventEmitter {
       if (instance.socket) {
         try {
           instance.socket.destroy();
+          instance.socket.removeAllListeners();
           this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Disconnected`);
         } catch (e) {
           // do nothing

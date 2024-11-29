@@ -69,6 +69,7 @@ export class HapClient extends EventEmitter {
       this.browser.stop();
       this.debug(`[HapClient] Discovery :: Terminated`);
       this.discoveryInProgress = false;
+      this.emit('discovery-ended');
     }
 
     this.instances = [];
@@ -108,6 +109,7 @@ export class HapClient extends EventEmitter {
       this.browser.stop();
       this.debug(`[HapClient] Discovery :: Ended`);
       this.discoveryInProgress = false;
+      this.emit('discovery-ended');
     }, 60000);
 
     // service found
