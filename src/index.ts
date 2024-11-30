@@ -57,7 +57,7 @@ export class HapClient extends EventEmitter {
 
   debug(msg) {
     if (this.debugEnabled) {
-      this.logger.log(msg);
+      this.logger.log(`[HapClient] +${msg}`);
     }
   }
 
@@ -74,7 +74,7 @@ export class HapClient extends EventEmitter {
 
     this.instances = [];
 
-    this.resetInstancePoolTimeout = setTimeout(() => {
+    this.resetInstancePoolTimeout = setTimeout(() => {  // Give homebridge a few seconds to restart before we start discovery again
       this.refreshInstances();
     }, 6000);
   }
@@ -417,7 +417,7 @@ export class HapClient extends EventEmitter {
 
     } catch (e) {
       this.debug(e);
-      this.logger.log(`Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+      this.logger.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
     }
     return service;
   }
@@ -437,7 +437,7 @@ export class HapClient extends EventEmitter {
       return characteristic;
     } catch (e) {
       this.debug(e);
-      this.logger.log(`Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
+      this.logger.error(`[HapClient] Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
     }
   }
 
