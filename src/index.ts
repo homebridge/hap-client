@@ -69,7 +69,7 @@ export class HapClient extends EventEmitter {
       this.browser.stop();
       this.debug(`[HapClient] Discovery :: Terminated`);
       this.discoveryInProgress = false;
-      this.emit('discovery-ended');
+      this.emit('discovery-terminated');
     }
 
     this.instances = [];
