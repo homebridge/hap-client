@@ -77,13 +77,13 @@ export class HapMonitor extends EventEmitter {
             }
           }
         });
-        instance.socket.on('close', (data) => {
-          this.emit('monitor-close', instance, data);
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${data}`);
+        instance.socket.on('close', (hadError) => {
+          this.emit('monitor-close', instance, hadError);
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`);
         });
-        instance.socket.on('error', (data) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
-          this.emit('monitor-error', instance, data);
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${data}`);
+        instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
+          this.emit('monitor-error', instance, error);
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${error}`);
         });
       } catch (e) {
         this.debug(e);

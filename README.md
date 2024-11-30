@@ -39,9 +39,9 @@ this.hapClient.on('discovery-ended', this.discoveryEnded());  // Emitted when di
 
 this.monitor.on('service-update', this.serviceUpdate(services)); // Emitted when a characteristic change is received from a homebridge service
 
-this.monitor.on('monitor-close', this.monitorClose(instance, data)); // Emitted when the connection to a homebridge service is closed ( likely a restart )
+this.monitor.on('monitor-close', this.monitorClose(instance, hadError)); // Emitted when the connection to a homebridge service is closed ( likely a restart )
 
-this.monitor.on('monitor-error', this.monitorError(instance, data)); // Emitted when the connection to a homebridge service has an error ( likely a restart )
+this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted when the connection to a homebridge service has an error ( likely a restart )
 ```
 
 
