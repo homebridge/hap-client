@@ -417,12 +417,11 @@ export class HapClient extends EventEmitter {
         characteristic.value = c.value;
         service.values[characteristic.type] = c.value;
       });
-
+      return service;
     } catch (e) {
       this.debug(`[HapClient] +${e}`);
       this.logger.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
     }
-    return service;
   }
 
   async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
