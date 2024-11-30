@@ -60,7 +60,7 @@ export class HapClient extends EventEmitter {
       const error = new Error();
       const stackLines = error.stack.split('\n');
       const callerInfo = stackLines[2]; // Line 2 contains the caller information
-      this.logger.log(msg + ' @ ' + callerInfo);
+      this.logger.log(msg + ' @ ' + callerInfo.trim());
     }
   }
 
