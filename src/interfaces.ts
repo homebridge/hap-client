@@ -7,6 +7,7 @@ export interface HapInstance {
   username: string;
   connectionFailedCount: number;
   services: ServiceType[];
+  configurationNumber: number;
 }
 
 export interface HapEvInstance {

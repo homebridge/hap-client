@@ -108,12 +108,12 @@ export class HapClient extends EventEmitter {
     this.debug(`[HapClient] Discovery :: Started`);
 
     // stop discovery after 20 seconds
-    this.startDiscoveryTimeout = setTimeout(() => {
-      this.browser.stop();
-      this.debug(`[HapClient] Discovery :: Ended`);
-      this.discoveryInProgress = false;
-      this.emit('discovery-ended');
-    }, 60000);
+    //  this.startDiscoveryTimeout = setTimeout(() => {
+    //    this.browser.stop();
+    //    this.debug(`[HapClient] Discovery :: Ended`);
+    //    this.discoveryInProgress = false;
+    //    this.emit('discovery-ended');
+    //  }, 60000);
 
     // service found
     this.browser.on('up', async (device: Service) => {
@@ -129,6 +129,7 @@ export class HapClient extends EventEmitter {
         port: device.port,
         services: [],
         connectionFailedCount: 0,
+        configurationNumber: device.txt['c#'],
       };
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
@@ -136,16 +137,23 @@ export class HapClient extends EventEmitter {
       // update an existing instance
       const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
       if (existingInstanceIndex > -1) {
-
+        // ipAddresses change use case is not handled
+        const configurationChanged = this.instances[existingInstanceIndex].configurationNumber !== instance.configurationNumber;
         if (
           this.instances[existingInstanceIndex].port !== instance.port ||
-          this.instances[existingInstanceIndex].name !== instance.name
+          this.instances[existingInstanceIndex].name !== instance.name ||
+          configurationChanged
         ) {
           this.instances[existingInstanceIndex].port = instance.port;
           this.instances[existingInstanceIndex].name = instance.name;
+          this.instances[existingInstanceIndex].configurationNumber = instance.configurationNumber;
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} ` +
             `(${instance.username})] Instance Updated`);
-          this.emit('instance-discovered', instance);
+          this.emit('instance-discovered', this.instances[existingInstanceIndex]);
+          if (configurationChanged) {
+            this.emit('instance-configuration-changed', this.instances[existingInstanceIndex]);
+          }
+          this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex]);
         }
 
         return;
@@ -181,6 +189,7 @@ export class HapClient extends EventEmitter {
         this.instances.push(instance);
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
         this.emit('instance-discovered', instance);
+        this.hapMonitor?.refreshMonitorConnection(instance);
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`);
       }

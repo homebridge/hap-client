@@ -33,6 +33,8 @@ this.monitor = await this.hapClient.monitorCharacteristics(services?: ServiceTyp
 ```
 this.hapClient.on('instance-discovered', this.instanceDiscovered(instance: HapInstance));  // Emitted during discovery for each HB instance discovered
 
+this.hapClient.on('instance-configuration-changed', this.instanceChanged(instance: HapInstance));  // Emitted during discovery for each HB instance change
+
 this.hapClient.on('discovery-terminated', this.discoveryTerminated());  // Instance discovery was terminated
 
 this.hapClient.on('discovery-ended', this.discoveryEnded());  // Emitted when discovery has ended ( 60 Seconds )
@@ -42,6 +44,8 @@ this.monitor.on('service-update', this.serviceUpdate(services)); // Emitted when
 this.monitor.on('monitor-close', this.monitorClose(instance, hadError)); // Emitted when the connection to a homebridge service is closed ( likely a restart )
 
 this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted when the connection to a homebridge service has an error ( likely a restart )
+
+this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed ( Triggered when an instance is discovered and its port, configuration number or name has changed)
 ```
 
 

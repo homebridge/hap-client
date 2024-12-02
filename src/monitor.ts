@@ -30,65 +30,70 @@ export class HapMonitor extends EventEmitter {
 
   start() {
     for (const instance of this.evInstances) {
-      try {
-        instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics });
+      this.connectInstance(instance);
+    }
+  }
 
-        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`);
+  connectInstance(instance: HapEvInstance) {
+    try {
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`);
+      instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics });
 
-        instance.socket.on('data', (data) => {
-          const message = parseMessage(data);
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`);
 
-          if (message.statusCode === 401) {
-            if (this.logger) {
+      instance.socket.on('data', (data) => {
+        const message = parseMessage(data);
+
+        if (message.statusCode === 401) {
+          if (this.logger) {
+            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+              `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
+          }
+        }
+
+        if (message.protocol === 'EVENT') {
+          try {
+            const body = JSON.parse(message.body);
+            if (body.characteristics && body.characteristics.length) {
               this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-                `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
-            }
-          }
+                `Got Event: ${JSON.stringify(body.characteristics)}`);
 
-          if (message.protocol === 'EVENT') {
-            try {
-              const body = JSON.parse(message.body);
-              if (body.characteristics && body.characteristics.length) {
-                this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-                  `Got Event: ${JSON.stringify(body.characteristics)}`);
+              const response = body.characteristics.map((c) => {
+                // find the matching service for each characteristics
+                const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username);
+                const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid));
 
-                const response = body.characteristics.map((c) => {
-                  // find the matching service for each characteristics
-                  const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username);
-                  const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid));
-
-                  if (service) {
-                    // find the correct characteristic and update it
-                    const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid);
-                    if (characteristic) {
-                      characteristic.value = c.value;
-                      service.values[characteristic.type] = c.value;
-                      return service;
-                    }
+                if (service) {
+                  // find the correct characteristic and update it
+                  const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid);
+                  if (characteristic) {
+                    characteristic.value = c.value;
+                    service.values[characteristic.type] = c.value;
+                    return service;
                   }
+                }
 
-                });
+              });
 
-                // push update to listeners
-                this.emit('service-update', response.filter(x => x));
-              }
-            } catch (e) {
-              // do nothing
+              // push update to listeners
+              this.emit('service-update', response.filter(x => x));
             }
+          } catch (e) {
+            // do nothing
           }
-        });
-        instance.socket.on('close', (hadError) => {
-          this.emit('monitor-close', instance, hadError);
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`);
-        });
-        instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
-          this.emit('monitor-error', instance, error);
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${error}`);
-        });
-      } catch (e) {
-        this.debug(e);
-        this.logger.log(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
-      }
+        }
+      });
+      instance.socket.on('close', (hadError) => {
+        this.emit('monitor-close', instance, hadError);
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`);
+      });
+      instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
+        this.emit('monitor-error', instance, error);
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${error}`);
+      });
+    } catch (e) {
+      this.debug(e);
+      this.logger.log(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
     }
   }
 
@@ -103,6 +108,21 @@ export class HapMonitor extends EventEmitter {
           // do nothing
         }
       }
+    }
+  }
+
+  refreshMonitorConnection(refreshInstance: HapEvInstance) {
+    this.debug(`[HapClient] [${refreshInstance.ipAddress}:${refreshInstance.port} (${refreshInstance.username})] Refreshing Monitor`);
+    // console.log('this.evInstances', this.evInstances);
+    const instance = this.evInstances.find(x => x.username === refreshInstance.username);
+    if (instance) {
+      instance.socket.destroy();
+      instance.socket.removeAllListeners();
+      instance.port = refreshInstance.port;
+      instance.ipAddress = refreshInstance.ipAddress;
+
+      this.connectInstance(instance);
+      this.emit('monitor-refresh', instance);
     }
   }
 
