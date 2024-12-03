@@ -13,6 +13,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - Minor tweak to serviceName, and if the name is blank, use the name value from Accessory Information
 - Fixed issue of error handler triggering error when attempting to connect to a homebridge instance that is down
 - Added restart of monitor when client connections close
+- Added console logging if a logger is not provided
 
 ## v2.0.4 (2024-11-07)
 

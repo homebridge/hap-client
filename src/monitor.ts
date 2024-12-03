@@ -28,6 +28,14 @@ export class HapMonitor extends EventEmitter {
     this.start();
   }
 
+  log(message: string) {
+    this.logger?.log(`[HapMonitor] ${message}`);
+  }
+
+  error(message: string) {
+    this.logger?.log(`[HapMonitor] ERROR: ${message}`);
+  }
+
   start() {
     for (const instance of this.evInstances) {
       this.connectInstance(instance);
@@ -45,10 +53,8 @@ export class HapMonitor extends EventEmitter {
         const message = parseMessage(data);
 
         if (message.statusCode === 401) {
-          if (this.logger) {
-            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-              `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          }
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+            `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
         }
 
         if (message.protocol === 'EVENT') {
@@ -93,7 +99,9 @@ export class HapMonitor extends EventEmitter {
       });
     } catch (e) {
       this.debug(e);
-      this.logger.log(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
+
+      this.error(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
+
     }
   }
 

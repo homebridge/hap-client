@@ -19,9 +19,9 @@ export class HapClient extends EventEmitter {
   private browser: Browser;
   private discoveryInProgress = false;
 
-  private logger;
+  private logger: any;
   private pin: string;
-  private debugEnabled: boolean;
+  private debugEnabled: boolean = false;
   private config: {
     debug?: boolean;
     instanceBlacklist?: string[];
@@ -29,13 +29,8 @@ export class HapClient extends EventEmitter {
 
   private instances: HapInstance[] = [];
 
-  private hiddenServices = [
-    Services.AccessoryInformation,
-  ];
-
-  private hiddenCharacteristics = [
-    Characteristics.Name,
-  ];
+  private hiddenServices = [Services.AccessoryInformation];
+  private hiddenCharacteristics = [Characteristics.Name];
 
   private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined;
   private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined;
@@ -47,26 +42,46 @@ export class HapClient extends EventEmitter {
     config: any;
   }) {
     super();
-
     this.pin = opts.pin;
-    this.logger = opts.logger;
-    this.debugEnabled = opts.config.debug;
+    this.logger = opts.logger || console; // Fallback to console if no logger is provided
+    this.debugEnabled = !!opts.config.debug;
     this.config = opts.config;
     this.startDiscovery();
   }
 
-  debug(msg) {
-    if (this.debugEnabled) {
-      const error = new Error();
-      const stackLines = error.stack.split('\n');
-      const callerInfo = stackLines[2]; // Line 2 contains the caller information
-      this.logger.log(msg + ' @ ' + callerInfo.trim());
+  /**
+   * Unified logging method.
+   */
+  private logMessage(level: 'debug' | 'info' | 'warn' | 'error', msg: string, includeStack = false) {
+    if (!this.logger || typeof this.logger[level] !== 'function') {
+      return;
     }
+
+    const message = includeStack
+      ? `${msg} @ ${new Error().stack?.split('\n')[3]?.trim()}`
+      : msg;
+
+    if (level === 'debug' && !this.debugEnabled) return;
+    this.logger[level](message);
   }
 
-  /**
-   * resetInstancePool - Reset the instance pool, useful for when a Homebridge instance is restarted
-   */
+  debug(msg: string) {
+    this.logMessage('debug', msg, true);
+  }
+
+  info(msg: string) {
+    this.logMessage('info', msg);
+  }
+
+  warn(msg: string) {
+    this.logMessage('warn', msg);
+  }
+
+  error(msg: string) {
+    this.logMessage('error', msg);
+  }
+
+  // Example usage in methods
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser.stop();
@@ -76,8 +91,7 @@ export class HapClient extends EventEmitter {
     }
 
     this.instances = [];
-
-    this.resetInstancePoolTimeout = setTimeout(() => {  // Give homebridge a few seconds to restart before we start discovery again
+    this.resetInstancePoolTimeout = setTimeout(() => {
       this.refreshInstances();
     }, 6000);
   }
@@ -234,15 +248,13 @@ export class HapClient extends EventEmitter {
           accessories.push(accessory);
         }
       } catch (e) {
-        if (this.logger) {
-          instance.connectionFailedCount++;
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
+        instance.connectionFailedCount++;
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
 
-          if (instance.connectionFailedCount > 5) {
-            const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
-            this.instances.splice(instanceIndex, 1);
-            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
-          }
+        if (instance.connectionFailedCount > 5) {
+          const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
+          this.instances.splice(instanceIndex, 1);
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
         }
       }
     }
@@ -429,7 +441,9 @@ export class HapClient extends EventEmitter {
       return service;
     } catch (e) {
       this.debug(`[HapClient] +${e}`);
-      this.logger.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+
+      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+
     }
   }
 
@@ -448,7 +462,9 @@ export class HapClient extends EventEmitter {
       return characteristic;
     } catch (e) {
       this.debug(`[HapClient] +${e}`);
-      this.logger.error(`[HapClient] Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
+
+      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`);
+
     }
   }
 
@@ -480,21 +496,19 @@ export class HapClient extends EventEmitter {
       );
       return this.getCharacteristic(service, iid);
     } catch (e) {
-      if (this.logger) {
-        this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-          `Failed to set value for ${service.serviceName}.`);
-        if (e.response && e.response?.status === 470 || e.response?.status === 401) {
-          this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-            `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
-            `is set to ${this.pin}.`);
-        } else {
-          this.logger.error(e.message);
-          throw new Error(`Failed to control accessory: ${e.message}`);
-        }
+
+      this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+        `Failed to set value for ${service.serviceName}.`);
+      if (e.response && e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+          `is set to ${this.pin}.`);
       } else {
-        console.log(e);
+        this.error(e.message);
+        throw new Error(`Failed to control accessory: ${e.message}`);
       }
+
     }
   }
 
@@ -514,31 +528,26 @@ export class HapClient extends EventEmitter {
       if (resp.status === 200) {
         return resp.data;
       } else {
-        if (this.logger) {
-          this.logger.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-            `Failed to request resource from accessory ${service.serviceName}. Response status Code ${resp.status}`);
-        } else {
-          console.log(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-            `Failed to request resource from accessory ${service.serviceName}.  Response status Code ${resp.status}`)
-        }
+
+        this.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Failed to request resource from accessory ${service.serviceName}. Response status Code ${resp.status}`);
+
       }
       return;
     } catch (e) {
-      if (this.logger) {
-        this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-          `Failed to request resource from accessory ${service.serviceName}.`);
-        if (e.response && e.response?.status === 470 || e.response?.status === 401) {
-          this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-            `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
-            `is set to ${this.pin}.`);
-        } else {
-          this.logger.error(e.message);
-          throw new Error(`Failed to request resource: ${e.message}`);
-        }
+
+      this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+        `Failed to request resource from accessory ${service.serviceName}.`);
+      if (e.response && e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+          `is set to ${this.pin}.`);
       } else {
-        console.log(e);
+        this.error(e.message);
+        throw new Error(`Failed to request resource: ${e.message}`);
       }
+
     }
   }
 
