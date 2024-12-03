@@ -107,13 +107,13 @@ export class HapClient extends EventEmitter {
     this.browser.start();
     this.debug(`[HapClient] Discovery :: Started`);
 
-    // stop discovery after 20 seconds
-    //  this.startDiscoveryTimeout = setTimeout(() => {
-    //    this.browser.stop();
-    //    this.debug(`[HapClient] Discovery :: Ended`);
-    //    this.discoveryInProgress = false;
-    //    this.emit('discovery-ended');
-    //  }, 60000);
+    // stop discovery after 60 seconds
+    this.startDiscoveryTimeout = setTimeout(() => {
+      this.browser.stop();
+      this.debug(`[HapClient] Discovery :: Ended`);
+      this.discoveryInProgress = false;
+      this.emit('discovery-ended');
+    }, 60000);
 
     // service found
     this.browser.on('up', async (device: Service) => {
