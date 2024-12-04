@@ -2,7 +2,7 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## BETA
+## v2.0.5 (2024-12-04)
 
 ### Changed
 
@@ -11,7 +11,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - Added new setCharacteristic option, setCharacteristicByType which finds characteristic by type for setting.
 - Added new getResource request to retrieve snapshot images from camera's
 - Minor tweak to serviceName, and if the name is blank, use the name value from Accessory Information
-- Fixed issue of error handler triggering error when attempting to connect to a homebridge instance that is down
+- Fixed issue of error handler triggering an error when attempting to connect to a homebridge instance that is down
 - Added restart of monitor when client connections close
 - Added console logging if a logger is not provided
 
