@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
-import { ServiceType, HapEvInstance } from './interfaces';
 import { createConnection, parseMessage } from './eventedHttpClient';
+import { HapEvInstance, ServiceType } from './interfaces';
 
 /**
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
@@ -28,8 +28,23 @@ export class HapMonitor extends EventEmitter {
     this.start();
   }
 
+  log(message: string) {
+    this.logger?.log(`[HapMonitor] ${message}`);
+  }
+
+  error(message: string) {
+    this.logger?.log(`[HapMonitor] ERROR: ${message}`);
+  }
+
   start() {
     for (const instance of this.evInstances) {
+      this.connectInstance(instance);
+    }
+  }
+
+  connectInstance(instance: HapEvInstance) {
+    try {
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`);
       instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics });
 
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`);
@@ -38,10 +53,8 @@ export class HapMonitor extends EventEmitter {
         const message = parseMessage(data);
 
         if (message.statusCode === 401) {
-          if (this.logger) {
-            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
-              `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          }
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] ` +
+            `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`);
         }
 
         if (message.protocol === 'EVENT') {
@@ -76,6 +89,19 @@ export class HapMonitor extends EventEmitter {
           }
         }
       });
+      instance.socket.on('close', (hadError) => {
+        this.emit('monitor-close', instance, hadError);
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`);
+      });
+      instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
+        this.emit('monitor-error', instance, error);
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${error}`);
+      });
+    } catch (e) {
+      this.debug(e);
+
+      this.error(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`);
+
     }
   }
 
@@ -84,11 +110,27 @@ export class HapMonitor extends EventEmitter {
       if (instance.socket) {
         try {
           instance.socket.destroy();
+          instance.socket.removeAllListeners();
           this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Disconnected`);
         } catch (e) {
           // do nothing
         }
       }
+    }
+  }
+
+  refreshMonitorConnection(refreshInstance: HapEvInstance) {
+    this.debug(`[HapClient] [${refreshInstance.ipAddress}:${refreshInstance.port} (${refreshInstance.username})] Refreshing Monitor`);
+    // console.log('this.evInstances', this.evInstances);
+    const instance = this.evInstances.find(x => x.username === refreshInstance.username);
+    if (instance) {
+      instance.socket.destroy();
+      instance.socket.removeAllListeners();
+      instance.port = refreshInstance.port;
+      instance.ipAddress = refreshInstance.ipAddress;
+
+      this.connectInstance(instance);
+      this.emit('monitor-refresh', instance);
     }
   }
 

@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 
 import axios from 'axios';
+import Bonjour, { Browser, Service } from 'bonjour-service';
 import * as decamelize from 'decamelize';
 import { titleize } from 'inflection';
-import Bonjour, { Browser, Service } from 'bonjour-service'
 
-import { Services, Characteristics } from './hap-types';
-import { toLongFormUUID } from './uuid';
-import { HapMonitor } from './monitor';
-import { HapAccessoriesRespType, ServiceType, CharacteristicType, HapInstance, HapCharacteristicRespType, AccessoryInformationProperties } from './interfaces';
 import 'source-map-support/register';
+import { Characteristics, Services } from './hap-types';
+import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ResourceRequestType, ServiceType } from './interfaces';
+import { HapMonitor } from './monitor';
+import { toLongFormUUID } from './uuid';
 
 export * from './interfaces';
 
@@ -19,9 +19,9 @@ export class HapClient extends EventEmitter {
   private browser: Browser;
   private discoveryInProgress = false;
 
-  private logger;
+  private logger: any;
   private pin: string;
-  private debugEnabled: boolean;
+  private debugEnabled: boolean = false;
   private config: {
     debug?: boolean;
     instanceBlacklist?: string[];
@@ -29,13 +29,8 @@ export class HapClient extends EventEmitter {
 
   private instances: HapInstance[] = [];
 
-  private hiddenServices = [
-    Services.AccessoryInformation,
-  ];
-
-  private hiddenCharacteristics = [
-    Characteristics.Name,
-  ];
+  private hiddenServices = [Services.AccessoryInformation];
+  private hiddenCharacteristics = [Characteristics.Name];
 
   private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined;
   private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined;
@@ -47,32 +42,55 @@ export class HapClient extends EventEmitter {
     config: any;
   }) {
     super();
-
     this.pin = opts.pin;
-    this.logger = opts.logger;
-    this.debugEnabled = opts.config.debug;
+    this.logger = opts.logger || console; // Fallback to console if no logger is provided
+    this.debugEnabled = !!opts.config.debug;
     this.config = opts.config;
     this.startDiscovery();
   }
 
-  debug(msg) {
-    if (this.debugEnabled) {
-      this.logger.log(msg);
+  /**
+   * Unified logging method.
+   */
+  private logMessage(level: 'debug' | 'info' | 'warn' | 'error', msg: string, includeStack = false) {
+    if (!this.logger || typeof this.logger[level] !== 'function') {
+      return;
     }
+
+    const message = includeStack
+      ? `${msg} @ ${new Error().stack?.split('\n')[3]?.trim()}`
+      : msg;
+
+    if (level === 'debug' && !this.debugEnabled) return;
+    this.logger[level](message);
   }
 
-  /**
-   * resetInstancePool - Reset the instance pool, useful for when a Homebridge instance is restarted
-   */
+  debug(msg: string) {
+    this.logMessage('debug', msg, true);
+  }
+
+  info(msg: string) {
+    this.logMessage('info', msg);
+  }
+
+  warn(msg: string) {
+    this.logMessage('warn', msg);
+  }
+
+  error(msg: string) {
+    this.logMessage('error', msg);
+  }
+
+  // Example usage in methods
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser.stop();
       this.debug(`[HapClient] Discovery :: Terminated`);
       this.discoveryInProgress = false;
+      this.emit('discovery-terminated');
     }
 
     this.instances = [];
-
     this.resetInstancePoolTimeout = setTimeout(() => {
       this.refreshInstances();
     }, 6000);
@@ -103,11 +121,12 @@ export class HapClient extends EventEmitter {
     this.browser.start();
     this.debug(`[HapClient] Discovery :: Started`);
 
-    // stop discovery after 20 seconds
+    // stop discovery after 60 seconds
     this.startDiscoveryTimeout = setTimeout(() => {
       this.browser.stop();
       this.debug(`[HapClient] Discovery :: Ended`);
       this.discoveryInProgress = false;
+      this.emit('discovery-ended');
     }, 60000);
 
     // service found
@@ -124,6 +143,7 @@ export class HapClient extends EventEmitter {
         port: device.port,
         services: [],
         connectionFailedCount: 0,
+        configurationNumber: device.txt['c#'],
       };
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`);
@@ -131,16 +151,23 @@ export class HapClient extends EventEmitter {
       // update an existing instance
       const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username);
       if (existingInstanceIndex > -1) {
-
+        // ipAddresses change use case is not handled
+        const configurationChanged = this.instances[existingInstanceIndex].configurationNumber !== instance.configurationNumber;
         if (
           this.instances[existingInstanceIndex].port !== instance.port ||
-          this.instances[existingInstanceIndex].name !== instance.name
+          this.instances[existingInstanceIndex].name !== instance.name ||
+          configurationChanged
         ) {
           this.instances[existingInstanceIndex].port = instance.port;
           this.instances[existingInstanceIndex].name = instance.name;
+          this.instances[existingInstanceIndex].configurationNumber = instance.configurationNumber;
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} ` +
             `(${instance.username})] Instance Updated`);
-          this.emit('instance-discovered', instance);
+          this.emit('instance-discovered', this.instances[existingInstanceIndex]);
+          if (configurationChanged) {
+            this.emit('instance-configuration-changed', this.instances[existingInstanceIndex]);
+          }
+          this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex]);
         }
 
         return;
@@ -176,6 +203,7 @@ export class HapClient extends EventEmitter {
         this.instances.push(instance);
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`);
         this.emit('instance-discovered', instance);
+        this.hapMonitor?.refreshMonitorConnection(instance);
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`);
       }
@@ -220,15 +248,13 @@ export class HapClient extends EventEmitter {
           accessories.push(accessory);
         }
       } catch (e) {
-        if (this.logger) {
-          instance.connectionFailedCount++;
-          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
+        instance.connectionFailedCount++;
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
 
-          if (instance.connectionFailedCount > 5) {
-            const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
-            this.instances.splice(instanceIndex, 1);
-            this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
-          }
+        if (instance.connectionFailedCount > 5) {
+          const instanceIndex = this.instances.findIndex(x => x.username === instance.username && x.ipAddress === instance.ipAddress);
+          this.instances.splice(instanceIndex, 1);
+          this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`);
         }
       }
     }
@@ -328,7 +354,7 @@ export class HapClient extends EventEmitter {
             uuid: s.type,
             type: Services[s.type],
             humanType: this.humanizeString(Services[s.type]),
-            serviceName: serviceName.value.toString(),
+            serviceName: (serviceName.value.toString().length ? serviceName.value.toString() : accessoryInformation.Name),
             serviceCharacteristics,
             accessoryInformation,
             values: {},
@@ -351,11 +377,20 @@ export class HapClient extends EventEmitter {
             return this.setCharacteristic.bind(this)(service, iid, value);
           };
 
+          service.setCharacteristicByType = (type: string, value: number | string | boolean) => {
+            return this.setCharacteristicByType.bind(this)(service, type, value);
+          };
+
           /* Helper function to returns a characteristic by it's type name */
           service.getCharacteristic = (type: string) => {
             return service.serviceCharacteristics.find(c => c.type === type);
           };
 
+          if (service.type === 'CameraRTPStreamManagement') {
+            service.getResource = (body: ResourceRequestType) => {
+              return this.getResource.bind(this)(service, body);
+            };
+          }
           service.serviceCharacteristics.forEach((c) => {
             /* Helper function to set the value of a characteristic */
             c.setValue = async (value: number | string | boolean) => {
@@ -401,13 +436,15 @@ export class HapClient extends EventEmitter {
       resp.characteristics.forEach((c) => {
         const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid);
         characteristic.value = c.value;
+        service.values[characteristic.type] = c.value;
       });
-
+      return service;
     } catch (e) {
-      this.debug(e);
-      this.logger.log(`Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+      this.debug(`[HapClient] +${e}`);
+
+      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`);
+
     }
-    return service;
   }
 
   async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
@@ -420,12 +457,23 @@ export class HapClient extends EventEmitter {
 
       const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid);
       characteristic.value = resp.characteristics[0].value;
+      service.values[characteristic.type] = resp.characteristics[0].value;
 
       return characteristic;
     } catch (e) {
-      this.debug(e);
-      this.logger.log(`Failed to get characteristics for ${service.serviceName} with iid ${iid}: ${e.message}`);
+      this.debug(`[HapClient] +${e}`);
+
+      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`);
+
     }
+  }
+
+  async setCharacteristicByType(service: ServiceType, type: string, value: number | string | boolean) {
+    const characteristic = service.serviceCharacteristics.find(x => x.type === type);
+    if (!characteristic) {
+      throw new Error(`Characteristic ${type} not found in service ${service.serviceName}`);
+    }
+    return this.setCharacteristic(service, characteristic.iid, value);
   }
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
@@ -448,21 +496,58 @@ export class HapClient extends EventEmitter {
       );
       return this.getCharacteristic(service, iid);
     } catch (e) {
-      if (this.logger) {
-        this.logger.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-          `Failed to set value for ${service.serviceName}.`);
-        if (e.response && e.response.status === 470 || e.response.status === 401) {
-          this.logger.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
-            `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
-          throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
-            `is set to ${this.pin}.`);
-        } else {
-          this.logger.error(e.message);
-          throw new Error(`Failed to control accessory: ${e.message}`);
-        }
+
+      this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+        `Failed to set value for ${service.serviceName}.`);
+      if (e.response && e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+          `is set to ${this.pin}.`);
       } else {
-        console.log(e);
+        this.error(e.message);
+        throw new Error(`Failed to control accessory: ${e.message}`);
       }
+
+    }
+  }
+
+  async getResource(service: ServiceType, body: ResourceRequestType) {
+    try {
+      const resp: any = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`,
+        {
+          ...body, aid: service.aid
+        },
+        {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: this.pin,
+          },
+        }
+      );
+      if (resp.status === 200) {
+        return resp.data;
+      } else {
+
+        this.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Failed to request resource from accessory ${service.serviceName}. Response status Code ${resp.status}`);
+
+      }
+      return;
+    } catch (e) {
+
+      this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+        `Failed to request resource from accessory ${service.serviceName}.`);
+      if (e.response && e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+          `is set to ${this.pin}.`);
+      } else {
+        this.error(e.message);
+        throw new Error(`Failed to request resource: ${e.message}`);
+      }
+
     }
   }
 
