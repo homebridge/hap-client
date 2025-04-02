@@ -1,4 +1,4 @@
-import { HapClient } from '../src'
+import { HapClient } from '../src';
 
 const client = new HapClient({
   pin: '000-00-000',

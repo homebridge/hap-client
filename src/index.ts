@@ -619,6 +619,7 @@ export class HapClient extends EventEmitter {
     if (this.startDiscoveryTimeout) {
       clearTimeout(this.startDiscoveryTimeout)
     }
+    this.bonjour.destroy();
   }
 
 }
