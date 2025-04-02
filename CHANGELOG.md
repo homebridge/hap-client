@@ -2,11 +2,17 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.0.6 (2025-03-22)
+## v2.1.0 (2025-04-22)
 
 ### Changed
 
 - updated dependencies
+- 
+## v2.0.6 (2025-03-22)
+
+### Changed
+
+- Update setCharacteristic to support multiple updates.  Which resolves, https://github.com/NorthernMan54/node-red-contrib-homebridge-automation/issues/152
 
 ## v2.0.5 (2024-12-04)
 

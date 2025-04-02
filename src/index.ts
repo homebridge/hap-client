@@ -381,6 +381,10 @@ export class HapClient extends EventEmitter {
             return this.setCharacteristicByType.bind(this)(service, type, value);
           };
 
+          service.setCharacteristicsByTypes = (payload) => {
+            return this.setCharacteristicsByTypes.bind(this)(service, payload);
+          };
+
           /* Helper function to returns a characteristic by it's type name */
           service.getCharacteristic = (type: string) => {
             return service.serviceCharacteristics.find(c => c.type === type);
@@ -495,6 +499,53 @@ export class HapClient extends EventEmitter {
         }
       );
       return this.getCharacteristic(service, iid);
+    } catch (e) {
+
+      this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+        `Failed to set value for ${service.serviceName}.`);
+      if (e.response && e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
+          `Make sure Homebridge pin for this instance is set to ${this.pin}.`);
+        throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} ` +
+          `is set to ${this.pin}.`);
+      } else {
+        this.error(e.message);
+        throw new Error(`Failed to control accessory: ${e.message}`);
+      }
+
+    }
+  }
+
+  async setCharacteristicsByTypes(service: ServiceType, payload: string | number | boolean[]) {
+    const characteristics = Object.entries(payload).map(([type, value]) => {
+      const characteristic = service.serviceCharacteristics.find(x => x.type === type);
+      if (!characteristic) {
+        throw new Error(`Characteristic ${type} not found in service ${service.serviceName}`);
+      }
+      if (type !== "Configured Name") {
+        return {
+          aid: service.aid,
+          iid: characteristic.iid,
+          value,
+        };
+      }
+    });
+    return this.setCharacteristics(service, characteristics);
+  }
+
+  async setCharacteristics(service: ServiceType, characteristics: { aid: number, iid: number, value: string | number | boolean }[]) {
+    try {
+      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`,
+        {
+          characteristics: characteristics,
+        },
+        {
+          headers: {
+            Authorization: this.pin,
+          },
+        }
+      );
+      return this.refreshServiceCharacteristics(service);
     } catch (e) {
 
       this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] ` +
