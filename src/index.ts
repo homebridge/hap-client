@@ -516,20 +516,22 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  async setCharacteristicsByTypes(service: ServiceType, payload: string | number | boolean[]) {
+  async setCharacteristicsByTypes(service: ServiceType, payload: { [key: string]: string | number | boolean }) {
     const characteristics = Object.entries(payload).map(([type, value]) => {
       const characteristic = service.serviceCharacteristics.find(x => x.type === type);
       if (!characteristic) {
         throw new Error(`Characteristic ${type} not found in service ${service.serviceName}`);
       }
-      if (type !== "Configured Name") {
-        return {
-          aid: service.aid,
-          iid: characteristic.iid,
-          value,
-        };
+      if (type === "Configured Name") {
+        // Handle "Configured Name" case explicitly if needed
+        return null;
       }
-    });
+      return {
+        aid: service.aid,
+        iid: characteristic.iid,
+        value,
+      };
+    }).filter(item => item !== null);
     return this.setCharacteristics(service, characteristics);
   }
 
