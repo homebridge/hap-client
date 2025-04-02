@@ -10,7 +10,7 @@
     "gen": "ts-node -P tsconfig.gen.json scripts/gen-hap-types.ts",
     "prepublishOnly": "npm run lint && npm run build",
     "clean": "rimraf ./dist",
-    "test": "jest --forceExit --detectOpenHandles"
+    "test": "jest --forceExit --detectOpenHandles --verbose=true"
   },
   "types": "./dist/index.d.ts",
   "repository": {
