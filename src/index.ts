@@ -381,7 +381,7 @@ export class HapClient extends EventEmitter {
             return this.setCharacteristicByType.bind(this)(service, type, value);
           };
 
-          service.setCharacteristicsByTypes = (payload) => {
+          service.setCharacteristicsByTypes = (payload: Record<string, string | number | boolean>) => {
             return this.setCharacteristicsByTypes.bind(this)(service, payload);
           };
 
@@ -516,7 +516,7 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  async setCharacteristicsByTypes(service: ServiceType, payload: { [key: string]: string | number | boolean }) {
+  async setCharacteristicsByTypes(service: ServiceType, payload: Record<string, string | number | boolean>) {
     const characteristics = Object.entries(payload).map(([type, value]) => {
       const characteristic = service.serviceCharacteristics.find(x => x.type === type);
       if (!characteristic) {
