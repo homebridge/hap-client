@@ -6,13 +6,14 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
-- updated dependencies
-- 
+- Added setCharacteristicsByTypes to support multiple characteristic updates to a single device.  Which resolves, https://github.com/NorthernMan54/node-red-contrib-homebridge-automation/issues/152
+- Added initial framework and dependencies to support the creation of test cases.
+
 ## v2.0.6 (2025-03-22)
 
 ### Changed
 
-- Update setCharacteristic to support multiple updates.  Which resolves, https://github.com/NorthernMan54/node-red-contrib-homebridge-automation/issues/152
+- updated dependencies
 
 ## v2.0.5 (2024-12-04)
 
