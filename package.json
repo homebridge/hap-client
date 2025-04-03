@@ -1,6 +1,6 @@
 {
   "name": "@homebridge/hap-client",
-  "version": "2.0.6",
+  "version": "2.1.0",
   "description": "A client for HAP-NodeJS.",
   "main": "./dist/index.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "gen": "ts-node -P tsconfig.gen.json scripts/gen-hap-types.ts",
     "prepublishOnly": "npm run lint && npm run build",
     "clean": "rimraf ./dist",
-    "test": "eslint src/**.ts"
+    "test": "jest --forceExit --detectOpenHandles --verbose=true"
   },
   "types": "./dist/index.d.ts",
   "repository": {
@@ -44,6 +44,10 @@
     "source-map-support": "0.5.21"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-typescript": "^7.27.0",
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.13.11",
     "@types/source-map-support": "^0.5.10",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
@@ -51,6 +55,8 @@
     "eslint": "^8.57.0",
     "eslint-plugin-jest": "^28.11.0",
     "hap-nodejs": "^1.1.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }

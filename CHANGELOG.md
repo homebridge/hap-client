@@ -2,6 +2,13 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.1.0 (2025-04-22)
+
+### Changed
+
+- Added setCharacteristicsByTypes to support multiple characteristic updates to a single device.  Which resolves, https://github.com/NorthernMan54/node-red-contrib-homebridge-automation/issues/152
+- Added initial framework and dependencies to support the creation of test cases.
+
 ## v2.0.6 (2025-03-22)
 
 ### Changed
