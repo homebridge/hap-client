@@ -2,6 +2,12 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.2.0 (Unreleased)
+
+### Changed
+
+- Updated dependencies
+
 ## v2.1.0 (2025-04-22)
 
 ### Changed
