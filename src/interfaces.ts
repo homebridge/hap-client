@@ -40,6 +40,7 @@ export interface HapAccessoriesRespType {
         maxValue?: number;
         minValue?: number;
         minStep?: number;
+        validValues?: (number | string | boolean)[];
       }>;
     }>;
   }>;
@@ -93,6 +94,7 @@ export interface CharacteristicType {
   maxValue?: number;
   minValue?: number;
   minStep?: number;
+  validValues?: (number | string | boolean)[];
   canRead: boolean;
   canWrite: boolean;
   ev: boolean;

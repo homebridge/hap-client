@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - Updated dependencies
+- Return `validValues` in characteristic structure
 
 ## v2.1.0 (2025-04-22)
 

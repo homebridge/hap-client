@@ -264,9 +264,9 @@ export class HapClient extends EventEmitter {
   /**
    * monitorCharacteristics
    * @param services - Optional array of services to monitor
-   * 
+   *
    * Creates connections to all Homebridge instances and monitors all characteristics for changes.  Will emit `service-update` events when characteristics change, which can be listened to.
-   * @returns 
+   * @returns
    */
   public async monitorCharacteristics(services?: ServiceType[]) {
     // If `services` is not provided, retrieve all services
@@ -276,7 +276,7 @@ export class HapClient extends EventEmitter {
   }
 
   /**
-   * 
+   *
    * @returns Array of all services from all Homebridge instances
    */
   public async getAllServices() {
@@ -342,6 +342,7 @@ export class HapClient extends EventEmitter {
                 maxValue: c.maxValue,
                 minValue: c.minValue,
                 minStep: c.minStep,
+                validValues: c['valid-values'],
                 canRead: c.perms.includes('pr'),
                 canWrite: c.perms.includes('pw'),
                 ev: c.perms.includes('ev'),
