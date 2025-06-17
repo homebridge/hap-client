@@ -10,9 +10,10 @@ export class HapMonitor extends EventEmitter {
   private pin;
   private evInstances: HapEvInstance[];
   private services: ServiceType[];
-  private logger: any;
+  private logger: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   private debug: (arg0: string) => void;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
     super();
     this.logger = logger;
@@ -84,7 +85,7 @@ export class HapMonitor extends EventEmitter {
               // push update to listeners
               this.emit('service-update', response.filter(x => x));
             }
-          } catch (e) {
+          } catch {
             // do nothing
           }
         }
@@ -112,7 +113,7 @@ export class HapMonitor extends EventEmitter {
           instance.socket.destroy();
           instance.socket.removeAllListeners();
           this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Disconnected`);
-        } catch (e) {
+        } catch {
           // do nothing
         }
       }

@@ -9,6 +9,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - update `@homebridge/hap-nodejs` to v2
 - modernise `tsconfig.json` file
 - update `jest` to `v30` and required migration steps
+- update `eslint` to `v9` and required migration steps
 
 ### Homebridge Dependencies
 
