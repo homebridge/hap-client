@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { Characteristic, Service, Categories } from 'hap-nodejs';
+import { Characteristic, Service, Categories } from '@homebridge/hap-nodejs';
 
 /** Generate Service Types */
 
