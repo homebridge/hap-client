@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - update `@homebridge/hap-nodejs` to v2
+- modernise `tsconfig.json` file
 
 ### Homebridge Dependencies
 
