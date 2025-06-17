@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 
 import axios from 'axios';
 import Bonjour, { Browser, Service } from 'bonjour-service';
-import * as decamelize from 'decamelize';
+import decamelize from 'decamelize';
 import { titleize } from 'inflection';
 
 import 'source-map-support/register';

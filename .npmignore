@@ -1,7 +1,6 @@
 # Don't publish these folders to npm
 src
 tsconfig.json
-tsconfig.gen.json
 tslint.json
 yarn.lock
 
