@@ -1,5 +1,3 @@
-import axios from 'axios';
-import Bonjour from 'bonjour-service';
 import { EventEmitter } from 'events';
 import { HapClient } from './index';
 
@@ -19,12 +17,8 @@ jest.mock('bonjour-service', () => {
 
 describe('HapClient', () => {
   let hapClient;
-  let mockAxios;
-  let mockBonjour;
 
   beforeEach(() => {
-    mockAxios = axios as jest.Mocked<typeof axios>;
-    mockBonjour = new Bonjour();
     hapClient = new HapClient({ pin: '123-45-678', config: {} });
   });
 

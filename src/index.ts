@@ -19,7 +19,7 @@ export class HapClient extends EventEmitter {
   private browser: Browser;
   private discoveryInProgress = false;
 
-  private logger: any;
+  private logger: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   private pin: string;
   private debugEnabled: boolean = false;
   private config: {
@@ -38,8 +38,8 @@ export class HapClient extends EventEmitter {
 
   constructor(opts: {
     pin: string;
-    logger?: any;
-    config: any;
+    logger?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    config: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   }) {
     super();
     this.pin = opts.pin;
@@ -106,7 +106,7 @@ export class HapClient extends EventEmitter {
       try {
         this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`);
         this.browser.update();
-      } catch (e) { }
+      } catch { /* do nothing */ }
     }
   }
 
@@ -247,7 +247,7 @@ export class HapClient extends EventEmitter {
           accessory.instance = instance;
           accessories.push(accessory);
         }
-      } catch (e) {
+      } catch {
         instance.connectionFailedCount++;
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`);
 
@@ -568,6 +568,7 @@ export class HapClient extends EventEmitter {
 
   async getResource(service: ServiceType, body: ResourceRequestType) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const resp: any = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`,
         {
           ...body, aid: service.aid

@@ -67,14 +67,14 @@ export interface ServiceType {
   humanType: string;
   serviceName: string;
   serviceCharacteristics: CharacteristicType[];
-  accessoryInformation: any;
+  accessoryInformation: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   refreshCharacteristics?: () => Promise<ServiceType>;
   setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
   setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<ServiceType>;
   setCharacteristicsByTypes?: (payload: Record<string, string | number | boolean>) => Promise<ServiceType>;
   getCharacteristic?: (type: string) => CharacteristicType;
   getResource?: (body: ResourceRequestType) => Promise<ServiceType>;
-  values: any;
+  values: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   instance: HapInstance;
   uniqueId?: string;
 }
