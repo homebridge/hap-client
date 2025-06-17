@@ -2,17 +2,18 @@
   "name": "@homebridge/hap-client",
   "version": "2.2.0",
   "description": "A client for HAP-NodeJS.",
-  "main": "./dist/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "check": "npm install && npm outdated",
+    "clean": "rimraf ./dist",
     "lint": "eslint src/**.ts",
     "build": "tsc",
-    "gen": "ts-node scripts/gen-hap-types.ts",
     "prepublishOnly": "npm run lint && npm run build",
-    "clean": "rimraf ./dist",
-    "test": "jest --forceExit --detectOpenHandles --verbose=true"
+    "test": "jest",
+    "test-coverage": "jest --coverage",
+    "gen": "ts-node scripts/gen-hap-types.ts"
   },
-  "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/homebridge/hap-client.git"
@@ -47,16 +48,15 @@
     "@babel/preset-env": "^7.27.2",
     "@babel/preset-typescript": "^7.27.1",
     "@homebridge/hap-nodejs": "^2.0.0",
-    "@jest/globals": "^29.7.0",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.15.21",
     "@types/source-map-support": "^0.5.10",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^8.57.0",
     "eslint-plugin-jest": "^28.11.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.3.4",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
