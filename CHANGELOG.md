@@ -10,6 +10,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - modernise `tsconfig.json` file
 - update `jest` to `v30` and required migration steps
 - update `eslint` to `v9` and required migration steps
+- update `axios`, regenerate lock file
 
 ### Homebridge Dependencies
 
