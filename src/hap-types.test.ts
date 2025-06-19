@@ -1,4 +1,4 @@
-import { Categories, Characteristics, Services } from './hap-types';
+import { Categories, Characteristics, Services, Enums } from './hap-types';
 
 describe('Services', () => {
   test('should be exported', () => {
@@ -41,5 +41,11 @@ describe('Categories', () => {
   });
   test('length should be 38 or greater', () => {
     expect(Object.keys(Categories).length).toBeGreaterThanOrEqual(38);
+  });
+});
+
+describe('Enums', () => {
+  test('should be exported', () => {
+    expect(Enums).toBeDefined();
   });
 });

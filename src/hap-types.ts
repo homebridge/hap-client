@@ -683,3 +683,366 @@ export const Categories = {
     'TV_SET_TOP_BOX': 35,
     'TV_STREAMING_STICK': 36,
 };
+
+export const Enums = {
+  AccessoryFlags: {
+    1: 'REQUIRES_ADDITIONAL_SETUP_BIT_MASK',
+  },
+  Active: {
+    0: 'INACTIVE',
+    1: 'ACTIVE',
+  },
+  AirParticulateSize: {
+    0: '_2_5_M',
+    1: '_10_M',
+  },
+  AirQuality: {
+    0: 'UNKNOWN',
+    1: 'EXCELLENT',
+    2: 'GOOD',
+    3: 'FAIR',
+    4: 'INFERIOR',
+    5: 'POOR',
+  },
+  CameraOperatingModeIndicator: {
+    0: 'DISABLE',
+    1: 'ENABLE',
+  },
+  CarbonDioxideDetected: {
+    0: 'CO2_LEVELS_NORMAL',
+    1: 'CO2_LEVELS_ABNORMAL',
+  },
+  CarbonMonoxideDetected: {
+    0: 'CO_LEVELS_NORMAL',
+    1: 'CO_LEVELS_ABNORMAL',
+  },
+  ChargingState: {
+    0: 'NOT_CHARGING',
+    1: 'CHARGING',
+    2: 'NOT_CHARGEABLE',
+  },
+  ClosedCaptions: {
+    0: 'DISABLED',
+    1: 'ENABLED',
+  },
+  ContactSensorState: {
+    0: 'CONTACT_DETECTED',
+    1: 'CONTACT_NOT_DETECTED',
+  },
+  CurrentAirPurifierState: {
+    0: 'INACTIVE',
+    1: 'IDLE',
+    2: 'PURIFYING_AIR',
+  },
+  CurrentDoorState: {
+    0: 'OPEN',
+    1: 'CLOSED',
+    2: 'OPENING',
+    3: 'CLOSING',
+    4: 'STOPPED',
+  },
+  CurrentFanState: {
+    0: 'INACTIVE',
+    1: 'IDLE',
+    2: 'BLOWING_AIR',
+  },
+  CurrentHeaterCoolerState: {
+    0: 'INACTIVE',
+    1: 'IDLE',
+    2: 'HEATING',
+    3: 'COOLING',
+  },
+  CurrentHeatingCoolingState: {
+    0: 'OFF',
+    1: 'HEAT',
+    2: 'COOL',
+  },
+  CurrentHumidifierDehumidifierState: {
+    0: 'INACTIVE',
+    1: 'IDLE',
+    2: 'HUMIDIFYING',
+    3: 'DEHUMIDIFYING',
+  },
+  CurrentMediaState: {
+    0: 'PLAY',
+    1: 'PAUSE',
+    2: 'STOP',
+    4: 'LOADING',
+    5: 'INTERRUPTED',
+  },
+  CurrentSlatState: {
+    0: 'FIXED',
+    1: 'JAMMED',
+    2: 'SWINGING',
+  },
+  CurrentVisibilityState: {
+    0: 'SHOWN',
+    1: 'HIDDEN',
+  },
+  EventSnapshotsActive: {
+    0: 'DISABLE',
+    1: 'ENABLE',
+  },
+  FilterChangeIndication: {
+    0: 'FILTER_OK',
+    1: 'CHANGE_FILTER',
+  },
+  HomeKitCameraActive: {
+    0: 'OFF',
+    1: 'ON',
+  },
+  InputDeviceType: {
+    0: 'OTHER',
+    1: 'TV',
+    2: 'RECORDING',
+    3: 'TUNER',
+    4: 'PLAYBACK',
+    5: 'AUDIO_SYSTEM',
+  },
+  InputSourceType: {
+    0: 'OTHER',
+    1: 'HOME_SCREEN',
+    2: 'TUNER',
+    3: 'HDMI',
+    4: 'COMPOSITE_VIDEO',
+    5: 'S_VIDEO',
+    6: 'COMPONENT_VIDEO',
+    7: 'DVI',
+    8: 'AIRPLAY',
+    9: 'USB',
+    10: 'APPLICATION',
+  },
+  InUse: {
+    0: 'NOT_IN_USE',
+    1: 'IN_USE',
+  },
+  IsConfigured: {
+    0: 'NOT_CONFIGURED',
+    1: 'CONFIGURED',
+  },
+  LeakDetected: {
+    0: 'LEAK_NOT_DETECTED',
+    1: 'LEAK_DETECTED',
+  },
+  LockCurrentState: {
+    0: 'UNSECURED',
+    1: 'SECURED',
+    2: 'JAMMED',
+    3: 'UNKNOWN',
+  },
+  LockLastKnownAction: {
+    0: 'SECURED_PHYSICALLY_INTERIOR',
+    1: 'UNSECURED_PHYSICALLY_INTERIOR',
+    2: 'SECURED_PHYSICALLY_EXTERIOR',
+    3: 'UNSECURED_PHYSICALLY_EXTERIOR',
+    4: 'SECURED_BY_KEYPAD',
+    5: 'UNSECURED_BY_KEYPAD',
+    6: 'SECURED_REMOTELY',
+    7: 'UNSECURED_REMOTELY',
+    8: 'SECURED_BY_AUTO_SECURE_TIMEOUT',
+    9: 'SECURED_PHYSICALLY',
+    10: 'UNSECURED_PHYSICALLY',
+  },
+  LockPhysicalControls: {
+    0: 'CONTROL_LOCK_DISABLED',
+    1: 'CONTROL_LOCK_ENABLED',
+  },
+  LockTargetState: {
+    0: 'UNSECURED',
+    1: 'SECURED',
+  },
+  ManagedNetworkEnable: {
+    0: 'DISABLED',
+    1: 'ENABLED',
+  },
+  ManuallyDisabled: {
+    0: 'ENABLED',
+    1: 'DISABLED',
+  },
+  OccupancyDetected: {
+    0: 'OCCUPANCY_NOT_DETECTED',
+    1: 'OCCUPANCY_DETECTED',
+  },
+  PeriodicSnapshotsActive: {
+    0: 'DISABLE',
+    1: 'ENABLE',
+  },
+  PictureMode: {
+    0: 'OTHER',
+    1: 'STANDARD',
+    2: 'CALIBRATED',
+    3: 'CALIBRATED_DARK',
+    4: 'VIVID',
+    5: 'GAME',
+    6: 'COMPUTER',
+    7: 'CUSTOM',
+  },
+  PositionState: {
+    0: 'DECREASING',
+    1: 'INCREASING',
+    2: 'STOPPED',
+  },
+  PowerModeSelection: {
+    0: 'SHOW',
+    1: 'HIDE',
+  },
+  ProgrammableSwitchEvent: {
+    0: 'SINGLE_PRESS',
+    1: 'DOUBLE_PRESS',
+    2: 'LONG_PRESS',
+  },
+  ProgramMode: {
+    0: 'NO_PROGRAM_SCHEDULED',
+    1: 'PROGRAM_SCHEDULED',
+    2: 'PROGRAM_SCHEDULED_MANUAL_MODE',
+  },
+  RecordingAudioActive: {
+    0: 'DISABLE',
+    1: 'ENABLE',
+  },
+  RemoteKey: {
+    0: 'REWIND',
+    1: 'FAST_FORWARD',
+    2: 'NEXT_TRACK',
+    3: 'PREVIOUS_TRACK',
+    4: 'ARROW_UP',
+    5: 'ARROW_DOWN',
+    6: 'ARROW_LEFT',
+    7: 'ARROW_RIGHT',
+    8: 'SELECT',
+    9: 'BACK',
+    10: 'EXIT',
+    11: 'PLAY_PAUSE',
+    15: 'INFORMATION',
+  },
+  RotationDirection: {
+    0: 'CLOCKWISE',
+    1: 'COUNTER_CLOCKWISE',
+  },
+  RouterStatus: {
+    0: 'READY',
+    1: 'NOT_READY',
+  },
+  SecuritySystemAlarmType: {
+    0: 'NO_ALARM',
+    1: 'UNKNOWN',
+  },
+  SecuritySystemCurrentState: {
+    0: 'STAY_ARM',
+    1: 'AWAY_ARM',
+    2: 'NIGHT_ARM',
+    3: 'DISARMED',
+    4: 'ALARM_TRIGGERED',
+  },
+  SecuritySystemTargetState: {
+    0: 'STAY_ARM',
+    1: 'AWAY_ARM',
+    2: 'NIGHT_ARM',
+    3: 'DISARM',
+  },
+  ServiceLabelNamespace: {
+    0: 'DOTS',
+    1: 'ARABIC_NUMERALS',
+  },
+  SiriInputType: {
+    0: 'PUSH_BUTTON_TRIGGERED_APPLE_TV',
+  },
+  SlatType: {
+    0: 'HORIZONTAL',
+    1: 'VERTICAL',
+  },
+  SleepDiscoveryMode: {
+    0: 'NOT_DISCOVERABLE',
+    1: 'ALWAYS_DISCOVERABLE',
+  },
+  SmokeDetected: {
+    0: 'SMOKE_NOT_DETECTED',
+    1: 'SMOKE_DETECTED',
+  },
+  StatusFault: {
+    0: 'NO_FAULT',
+    1: 'GENERAL_FAULT',
+  },
+  StatusJammed: {
+    0: 'NOT_JAMMED',
+    1: 'JAMMED',
+  },
+  StatusLowBattery: {
+    0: 'BATTERY_LEVEL_NORMAL',
+    1: 'BATTERY_LEVEL_LOW',
+  },
+  StatusTampered: {
+    0: 'NOT_TAMPERED',
+    1: 'TAMPERED',
+  },
+  SwingMode: {
+    0: 'SWING_DISABLED',
+    1: 'SWING_ENABLED',
+  },
+  TargetAirPurifierState: {
+    0: 'MANUAL',
+    1: 'AUTO',
+  },
+  TargetDoorState: {
+    0: 'OPEN',
+    1: 'CLOSED',
+  },
+  TargetFanState: {
+    0: 'MANUAL',
+    1: 'AUTO',
+  },
+  TargetHeaterCoolerState: {
+    0: 'AUTO',
+    1: 'HEAT',
+    2: 'COOL',
+  },
+  TargetHeatingCoolingState: {
+    0: 'OFF',
+    1: 'HEAT',
+    2: 'COOL',
+    3: 'AUTO',
+  },
+  TargetHumidifierDehumidifierState: {
+    0: 'HUMIDIFIER_OR_DEHUMIDIFIER',
+    1: 'HUMIDIFIER',
+    2: 'DEHUMIDIFIER',
+  },
+  TargetMediaState: {
+    0: 'PLAY',
+    1: 'PAUSE',
+    2: 'STOP',
+  },
+  TargetVisibilityState: {
+    0: 'SHOWN',
+    1: 'HIDDEN',
+  },
+  TemperatureDisplayUnits: {
+    0: 'CELSIUS',
+    1: 'FAHRENHEIT',
+  },
+  ThirdPartyCameraActive: {
+    0: 'OFF',
+    1: 'ON',
+  },
+  ValveType: {
+    0: 'GENERIC_VALVE',
+    1: 'IRRIGATION',
+    2: 'SHOWER_HEAD',
+    3: 'WATER_FAUCET',
+  },
+  VolumeControlType: {
+    0: 'NONE',
+    1: 'RELATIVE',
+    2: 'RELATIVE_WITH_CURRENT',
+    3: 'ABSOLUTE',
+  },
+  VolumeSelector: {
+    0: 'INCREMENT',
+    1: 'DECREMENT',
+  },
+  WiFiSatelliteStatus: {
+    0: 'UNKNOWN',
+    1: 'CONNECTED',
+    2: 'NOT_CONNECTED',
+  },
+};

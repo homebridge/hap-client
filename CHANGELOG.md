@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v3.1.0 (Unreleased)
+
+### Changed
+
+- export an enums constant in the hap-types file
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.0.0`
+
 ## v3.0.0 (2025-06-18)
 
 ### Changed
