@@ -8,6 +8,10 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - update dependencies
 
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.0.1`
+
 ## v3.1.0 (2025-06-19)
 
 ### Changed
