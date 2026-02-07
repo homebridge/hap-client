@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - updated dependencies
+- update release script for oidc releases
 
 ## v3.1.2 (2025-09-13)
 
