@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - update dependencies
+- regenerate types from `hap-nodejs` in `hap-types.ts`
 
 ### Homebridge Dependencies
 
