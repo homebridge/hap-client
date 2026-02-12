@@ -1,118 +1,118 @@
-import { Socket } from 'node:net';
+import { Socket } from 'node:net'
 
 export interface HapInstance {
-  name: string;
-  ipAddress: string | null;
-  port: number;
-  username: string;
-  connectionFailedCount: number;
-  services: ServiceType[];
-  configurationNumber: number;
+  name: string
+  ipAddress: string | null
+  port: number
+  username: string
+  connectionFailedCount: number
+  services: ServiceType[]
+  configurationNumber: number
 }
 
 export interface HapEvInstance {
-  name: string;
-  ipAddress: string;
-  port: number;
-  username: string;
-  evCharacteristics?: { aid: number, iid: number, ev: boolean }[];
-  socket?: Socket;
+  name: string
+  ipAddress: string
+  port: number
+  username: string
+  evCharacteristics?: { aid: number, iid: number, ev: boolean }[]
+  socket?: Socket
 }
 
 export interface HapAccessoriesRespType {
   accessories: Array<{
-    instance: HapInstance;
-    aid: number;
+    instance: HapInstance
+    aid: number
     services: Array<{
-      iid: number;
-      type: string;
-      primary: boolean;
-      hidden: boolean;
-      linked?: Array<number>;
+      iid: number
+      type: string
+      primary: boolean
+      hidden: boolean
+      linked?: Array<number>
       characteristics: Array<{
-        iid: number;
-        type: string;
-        description: string;
-        value: number | string | boolean;
-        format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary';
-        perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>;
-        unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds';
-        maxValue?: number;
-        minValue?: number;
-        minStep?: number;
-        validValues?: (number | string | boolean)[];
-      }>;
-    }>;
-  }>;
+        iid: number
+        type: string
+        description: string
+        value: number | string | boolean
+        format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary'
+        perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>
+        unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds'
+        maxValue?: number
+        minValue?: number
+        minStep?: number
+        validValues?: (number | string | boolean)[]
+      }>
+    }>
+  }>
 }
 
 export interface HapCharacteristicRespType {
   characteristics: {
-    aid: number;
-    iid: number;
-    value: number | string | boolean;
-  }[];
+    aid: number
+    iid: number
+    value: number | string | boolean
+  }[]
 }
 
 export interface ServiceType {
-  aid: number;
-  iid: number;
-  uuid: string;
-  type: string;
-  linked?: Array<number>;
+  aid: number
+  iid: number
+  uuid: string
+  type: string
+  linked?: Array<number>
   linkedServices?: {
-    [iid: number]: ServiceType;
-  };
-  hidden?: boolean;
-  humanType: string;
-  serviceName: string;
-  serviceCharacteristics: CharacteristicType[];
-  accessoryInformation: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  refreshCharacteristics?: () => Promise<ServiceType>;
-  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>;
-  setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<ServiceType>;
-  setCharacteristicsByTypes?: (payload: Record<string, string | number | boolean>) => Promise<ServiceType>;
-  getCharacteristic?: (type: string) => CharacteristicType;
-  getResource?: (body: ResourceRequestType) => Promise<ServiceType>;
-  values: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  instance: HapInstance;
-  uniqueId?: string;
+    [iid: number]: ServiceType
+  }
+  hidden?: boolean
+  humanType: string
+  serviceName: string
+  serviceCharacteristics: CharacteristicType[]
+  accessoryInformation: any
+  refreshCharacteristics?: () => Promise<ServiceType>
+  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>
+  setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<ServiceType>
+  setCharacteristicsByTypes?: (payload: Record<string, string | number | boolean>) => Promise<ServiceType>
+  getCharacteristic?: (type: string) => CharacteristicType
+  getResource?: (body: ResourceRequestType) => Promise<ServiceType>
+  values: any
+  instance: HapInstance
+  uniqueId?: string
 }
 
 export interface CharacteristicType {
-  aid: number;
-  iid: number;
-  uuid: string;
-  type: string;
-  serviceType: string;
-  serviceName: string;
-  description: string;
-  value: number | string | boolean;
-  format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary';
-  perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>;
-  unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds';
-  maxValue?: number;
-  minValue?: number;
-  minStep?: number;
-  validValues?: (number | string | boolean)[];
-  canRead: boolean;
-  canWrite: boolean;
-  ev: boolean;
-  setValue?: (value: number | string | boolean) => Promise<CharacteristicType>;
-  getValue?: () => Promise<CharacteristicType>;
+  aid: number
+  iid: number
+  uuid: string
+  type: string
+  serviceType: string
+  serviceName: string
+  description: string
+  value: number | string | boolean
+  format: 'bool' | 'int' | 'float' | 'string' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'data' | 'tlv8' | 'array' | 'dictionary'
+  perms: Array<'pr' | 'pw' | 'ev' | 'aa' | 'tw' | 'hd'>
+  unit?: 'unit' | 'percentage' | 'celsius' | 'arcdegrees' | 'lux' | 'seconds'
+  maxValue?: number
+  minValue?: number
+  minStep?: number
+  validValues?: (number | string | boolean)[]
+  canRead: boolean
+  canWrite: boolean
+  ev: boolean
+  setValue?: (value: number | string | boolean) => Promise<CharacteristicType>
+  getValue?: () => Promise<CharacteristicType>
 }
 
 export interface AccessoryInformationProperties {
-  'Manufacturer': string;
-  'Model': string;
-  'Name': string;
-  'Serial Number': string;
-  'Firmware Revision': string;
+  'Manufacturer': string
+  'Model': string
+  'Name': string
+  'Serial Number': string
+  'Firmware Revision': string
 }
 
 export interface ResourceRequestType {
-  aid?: number,
-  "resource-type": string,
-  "image-width": number,
-  "image-height": number
+  'aid'?: number
+  'resource-type': string
+  'image-width': number
+  'image-height': number
 }
