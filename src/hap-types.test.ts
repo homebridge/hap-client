@@ -1,51 +1,53 @@
-import { Categories, Characteristics, Services, Enums } from './hap-types';
+import { describe, expect, it } from '@jest/globals'
 
-describe('Services', () => {
-  test('should be exported', () => {
-    expect(Services).toBeDefined();
-  });
-  test('should have symmetric mappings for all keys except TelevisionSpeaker', () => {
+import { Categories, Characteristics, Enums, Services } from './hap-types'
+
+describe('services', () => {
+  it('should be exported', () => {
+    expect(Services).toBeDefined()
+  })
+  it('should have symmetric mappings for all keys except TelevisionSpeaker', () => {
     Object.keys(Services).forEach((key) => {
-      const value = Services[key];
+      const value = Services[key]
       if (key !== 'TelevisionSpeaker') {
-        expect(Services[value]).toBe(key);
+        expect(Services[value]).toBe(key)
       }
-    });
-  });
-  test('00000113-0000-1000-8000-0026BB765291 should be Speaker', () => {
-    expect(Services['00000113-0000-1000-8000-0026BB765291']).toBe('Speaker');
-  });
-  test('length should be 145 or greater', () => {
-    expect(Object.keys(Services).length).toBeGreaterThanOrEqual(145);
-  });
-});
+    })
+  })
+  it('00000113-0000-1000-8000-0026BB765291 should be Speaker', () => {
+    expect(Services['00000113-0000-1000-8000-0026BB765291']).toBe('Speaker')
+  })
+  it('length should be 145 or greater', () => {
+    expect(Object.keys(Services).length).toBeGreaterThanOrEqual(145)
+  })
+})
 
-describe('Characteristics', () => {
-  test('should be exported', () => {
-    expect(Characteristics).toBeDefined();
-  });
-  test('should have symmetric mappings for all keys', () => {
+describe('characteristics', () => {
+  it('should be exported', () => {
+    expect(Characteristics).toBeDefined()
+  })
+  it('should have symmetric mappings for all keys', () => {
     Object.keys(Characteristics).forEach((key) => {
-      const value = Characteristics[key];
-      expect(Characteristics[value]).toBe(key);
-    });
-  });
-  test('length should be 488 or greater', () => {
-    expect(Object.keys(Characteristics).length).toBeGreaterThanOrEqual(488);
-  });
-});
+      const value = Characteristics[key]
+      expect(Characteristics[value]).toBe(key)
+    })
+  })
+  it('length should be 488 or greater', () => {
+    expect(Object.keys(Characteristics).length).toBeGreaterThanOrEqual(488)
+  })
+})
 
-describe('Categories', () => {
-  test('should be exported', () => {
-    expect(Categories).toBeDefined();
-  });
-  test('length should be 38 or greater', () => {
-    expect(Object.keys(Categories).length).toBeGreaterThanOrEqual(38);
-  });
-});
+describe('categories', () => {
+  it('should be exported', () => {
+    expect(Categories).toBeDefined()
+  })
+  it('length should be 38 or greater', () => {
+    expect(Object.keys(Categories).length).toBeGreaterThanOrEqual(38)
+  })
+})
 
-describe('Enums', () => {
-  test('should be exported', () => {
-    expect(Enums).toBeDefined();
-  });
-});
+describe('enums', () => {
+  it('should be exported', () => {
+    expect(Enums).toBeDefined()
+  })
+})
