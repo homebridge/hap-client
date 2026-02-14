@@ -2,12 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v3.2.1 (Unreleased)
+## v3.3.0 (2026-02-14)
 
 ### Changed
 
 - bump `axios` from `v1.13.4` to `v1.13.5` (#30) (@dependabot)
 - update lint and code style + eslint dependencies
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.0`
 
 ## v3.2.0 (2026-02-08)
 
@@ -30,7 +34,6 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Homebridge Dependencies
 
 - `@homebridge/hap-nodejs` @ `v2.0.2`
-
 
 ## v3.1.2 (2025-09-13)
 
