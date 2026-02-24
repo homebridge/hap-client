@@ -21,12 +21,17 @@ export class HapClient extends EventEmitter {
   private browser: Browser
   private discoveryInProgress = false
 
+  private readonly defaultDiscoveryTimeout: number = 60000
+  private readonly defaultAutoStartDiscovery: boolean = true
+
   private logger: any
   private pin: string
   private debugEnabled: boolean = false
   private config: {
     debug?: boolean
     instanceBlacklist?: string[]
+    discoveryTimeout: number
+    autoStartDiscovery: boolean
   }
 
   private instances: HapInstance[] = []
@@ -47,8 +52,14 @@ export class HapClient extends EventEmitter {
     this.pin = opts.pin
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
-    this.config = opts.config
-    this.startDiscovery()
+    this.config = {
+      ...opts.config,
+      discoveryTimeout: opts.config.discoveryTimeout ?? this.defaultDiscoveryTimeout,
+      autoStartDiscovery: opts.config.autoStartDiscovery ?? this.defaultAutoStartDiscovery,
+    }
+    if (this.config.autoStartDiscovery) {
+      this.startDiscovery()
+    }
   }
 
   /**
@@ -114,8 +125,10 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  private async startDiscovery() {
+  public async startDiscovery(discoveryTimeout?: number) {
     this.discoveryInProgress = true
+
+    const timeout = discoveryTimeout ?? this.config.discoveryTimeout
 
     this.browser = this.bonjour.find({
       type: 'hap',
@@ -131,7 +144,7 @@ export class HapClient extends EventEmitter {
       this.debug(`[HapClient] Discovery :: Ended`)
       this.discoveryInProgress = false
       this.emit('discovery-ended')
-    }, 60000)
+    }, timeout)
 
     // service found
     this.browser.on('up', async (device: Service) => {
