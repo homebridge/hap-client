@@ -19,8 +19,8 @@ export * from './interfaces'
 export type Config = {
   debug?: boolean
   instanceBlacklist?: string[]
-  discoveryTimeout: number
-  autoStartDiscovery: boolean
+  discoveryTimeout?: number
+  autoStartDiscovery?: boolean
 }
 
 export class HapClient extends EventEmitter {
@@ -129,8 +129,8 @@ export class HapClient extends EventEmitter {
 
   public startDiscovery(discoveryTimeout?: number) {
     if (this.discoveryInProgress) {
-      this.debug(`[HapClient] Discovery :: Already in progress, destroying`)
-      this.destroy()
+      this.warn(`[HapClient] Discovery :: Already in progress`)
+      return
     }
     this.discoveryInProgress = true
 
@@ -231,6 +231,16 @@ export class HapClient extends EventEmitter {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
     })
+  }
+
+  public stopDiscovery() {
+    this.discoveryInProgress = false
+    this.browser?.stop()
+    if (this.startDiscoveryTimeout) {
+      clearTimeout(this.startDiscoveryTimeout)
+      this.startDiscoveryTimeout = undefined
+    }
+    this.debug(`[HapClient] Discovery :: Stopped`)
   }
 
   /**
@@ -610,9 +620,7 @@ export class HapClient extends EventEmitter {
   }
 
   /**
-   * Destroy the HAP client
-   * Used in `startDiscovery` if there is a discovery already in progress
-   * And in tests
+   * Destroy the HAP client, used by testing when shutting down
    */
   public destroy() {
     this.browser?.stop()

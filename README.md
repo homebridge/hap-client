@@ -41,6 +41,7 @@ this.hapClient = new HapClient({
 ```
 
 It's possible to control the discovery process manually, by settings the `autoStartDiscovery` property to `false` and then calling `this.hapClient.startDiscovery(discoveryTimeout?: number)` when ready. If no timeout is provided to the function, the `discoveryTimeout` property will be used from the `config` object, and if that is not provided either, the default discovery timeout (60 seconds) will be used.
+It's also possible to stop the discovery process manually by calling `stopDiscovery()`
 ```
 const { HapClient } = require('@homebridge/hap-client');
 
@@ -50,8 +51,10 @@ this.hapClient = new HapClient({
   logger: this.log,
 });
 
-await this.hapClient.startDiscovery(); // use the timeout provided in the config, 10000 ms
-await this.hapClient.startDiscovery(5000); // use the argument as timeout, 5000 ms
+this.hapClient.startDiscovery(); // use the timeout provided in the config, 10000 ms
+this.hapClient.startDiscovery(5000); // use the argument as timeout, 5000 ms
+
+this.hapClient.stopDiscovery(); // stop the discovery process manually
 ```
 
 ## hap-client Events
