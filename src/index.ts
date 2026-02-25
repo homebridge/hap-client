@@ -16,6 +16,13 @@ import 'source-map-support/register'
 
 export * from './interfaces'
 
+export type Config = {
+  debug?: boolean
+  instanceBlacklist?: string[]
+  discoveryTimeout: number
+  autoStartDiscovery: boolean
+}
+
 export class HapClient extends EventEmitter {
   private bonjour = new Bonjour()
   private browser: Browser
@@ -27,12 +34,7 @@ export class HapClient extends EventEmitter {
   private logger: any
   private pin: string
   private debugEnabled: boolean = false
-  private config: {
-    debug?: boolean
-    instanceBlacklist?: string[]
-    discoveryTimeout: number
-    autoStartDiscovery: boolean
-  }
+  private config: Config
 
   private instances: HapInstance[] = []
 
@@ -125,7 +127,11 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  public async startDiscovery(discoveryTimeout?: number) {
+  public startDiscovery(discoveryTimeout?: number) {
+    if (this.discoveryInProgress) {
+      this.debug(`[HapClient] Discovery :: Already in progress, destroying`)
+      this.destroy()
+    }
     this.discoveryInProgress = true
 
     const timeout = discoveryTimeout ?? this.config.discoveryTimeout
@@ -604,9 +610,11 @@ export class HapClient extends EventEmitter {
   }
 
   /**
-   * Destroy the HAP client, used by testing when shutting down
+   * Destroy the HAP client
+   * Used in `startDiscovery` if there is a discovery already in progress
+   * And in tests
    */
-  public async destroy() {
+  public destroy() {
     this.browser?.stop()
     this.hapMonitor?.finish()
     this.discoveryInProgress = false
