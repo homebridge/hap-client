@@ -16,7 +16,7 @@ import 'source-map-support/register'
 
 export * from './interfaces'
 
-export type Config = {
+export interface Config {
   debug?: boolean
   instanceBlacklist?: string[]
   discoveryTimeout?: number
@@ -241,6 +241,7 @@ export class HapClient extends EventEmitter {
       this.startDiscoveryTimeout = undefined
     }
     this.debug(`[HapClient] Discovery :: Stopped`)
+    this.emit('discovery-stopped')
   }
 
   /**
