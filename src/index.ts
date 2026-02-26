@@ -16,18 +16,25 @@ import 'source-map-support/register'
 
 export * from './interfaces'
 
+export interface Config {
+  debug?: boolean
+  instanceBlacklist?: string[]
+  discoveryTimeout?: number
+  autoStartDiscovery?: boolean
+}
+
 export class HapClient extends EventEmitter {
   private bonjour = new Bonjour()
   private browser: Browser
   private discoveryInProgress = false
 
+  private readonly defaultDiscoveryTimeout: number = 60000
+  private readonly defaultAutoStartDiscovery: boolean = true
+
   private logger: any
   private pin: string
   private debugEnabled: boolean = false
-  private config: {
-    debug?: boolean
-    instanceBlacklist?: string[]
-  }
+  private config: Config
 
   private instances: HapInstance[] = []
 
@@ -47,8 +54,14 @@ export class HapClient extends EventEmitter {
     this.pin = opts.pin
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
-    this.config = opts.config
-    this.startDiscovery()
+    this.config = {
+      ...opts.config,
+      discoveryTimeout: opts.config.discoveryTimeout ?? this.defaultDiscoveryTimeout,
+      autoStartDiscovery: opts.config.autoStartDiscovery ?? this.defaultAutoStartDiscovery,
+    }
+    if (this.config.autoStartDiscovery) {
+      this.startDiscovery()
+    }
   }
 
   /**
@@ -114,8 +127,14 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  private async startDiscovery() {
+  public startDiscovery(discoveryTimeout?: number) {
+    if (this.discoveryInProgress) {
+      this.warn(`[HapClient] Discovery :: Already in progress`)
+      return
+    }
     this.discoveryInProgress = true
+
+    const timeout = discoveryTimeout ?? this.config.discoveryTimeout
 
     this.browser = this.bonjour.find({
       type: 'hap',
@@ -131,7 +150,7 @@ export class HapClient extends EventEmitter {
       this.debug(`[HapClient] Discovery :: Ended`)
       this.discoveryInProgress = false
       this.emit('discovery-ended')
-    }, 60000)
+    }, timeout)
 
     // service found
     this.browser.on('up', async (device: Service) => {
@@ -212,6 +231,17 @@ export class HapClient extends EventEmitter {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
     })
+  }
+
+  public stopDiscovery() {
+    this.discoveryInProgress = false
+    this.browser?.stop()
+    if (this.startDiscoveryTimeout) {
+      clearTimeout(this.startDiscoveryTimeout)
+      this.startDiscoveryTimeout = undefined
+    }
+    this.debug(`[HapClient] Discovery :: Stopped`)
+    this.emit('discovery-stopped')
   }
 
   /**
@@ -593,7 +623,7 @@ export class HapClient extends EventEmitter {
   /**
    * Destroy the HAP client, used by testing when shutting down
    */
-  public async destroy() {
+  public destroy() {
     this.browser?.stop()
     this.hapMonitor?.finish()
     this.discoveryInProgress = false

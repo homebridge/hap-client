@@ -27,6 +27,36 @@ this.hapClient = new HapClient({
 this.monitor = await this.hapClient.monitorCharacteristics(services?: ServiceType[]);  // Creates event monitors for all event capabable Homebridge services.  If a list of services is, this list is used rather than all
 ```
 
+The discovery timeout can be configured by setting the `discoveryTimeout` property in the `config` object.
+```
+const { HapClient } = require('@homebridge/hap-client');
+
+this.hapClient = new HapClient({
+  config: { debug: true, discoveryTimeout: 5000 },
+  pin: config.username,
+  logger: this.log,
+});
+
+// the discovery process will auto-start now with the timeout of 5 seconds
+```
+
+It's possible to control the discovery process manually, by settings the `autoStartDiscovery` property to `false` and then calling `this.hapClient.startDiscovery(discoveryTimeout?: number)` when ready. If no timeout is provided to the function, the `discoveryTimeout` property will be used from the `config` object, and if that is not provided either, the default discovery timeout (60 seconds) will be used.
+It's also possible to stop the discovery process manually by calling `stopDiscovery()`
+```
+const { HapClient } = require('@homebridge/hap-client');
+
+this.hapClient = new HapClient({
+  config: { debug: true, autoStartDiscovery: false, discoveryTimeout: 10000 },
+  pin: config.username,
+  logger: this.log,
+});
+
+this.hapClient.startDiscovery(); // use the timeout provided in the config, 10000 ms
+this.hapClient.startDiscovery(5000); // use the argument as timeout, 5000 ms
+
+this.hapClient.stopDiscovery(); // stop the discovery process manually
+```
+
 ## hap-client Events
 
 ```

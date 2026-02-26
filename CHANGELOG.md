@@ -2,6 +2,12 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v3.4.0 (2026-02-24)
+
+### Changed
+
+- more granular control for the discovery process
+
 ## v3.3.0 (2026-02-14)
 
 ### Changed
