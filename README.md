@@ -68,6 +68,8 @@ this.hapClient.on('discovery-terminated', this.discoveryTerminated());  // Insta
 
 this.hapClient.on('discovery-ended', this.discoveryEnded());  // Emitted when discovery has ended ( 60 Seconds )
 
+this.hapClient.on('discovery-stopped', this.discoveryStopped());  // Emitted when discovery has been stopped manually
+
 this.monitor.on('service-update', this.serviceUpdate(services)); // Emitted when a characteristic change is received from a homebridge service
 
 this.monitor.on('monitor-close', this.monitorClose(instance, hadError)); // Emitted when the connection to a homebridge service is closed ( likely a restart )
