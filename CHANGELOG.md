@@ -6,7 +6,13 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
-- more granular control for the discovery process
+- feat: added more granular control for discovery (#32) (@kovapatrik)
+- docs: added new discovery-stopped event to README (#33) (@kovapatrik)
+- fix: restore map in monitor to fix service-update events
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.0`
 
 ## v3.3.0 (2026-02-14)
 
