@@ -64,7 +64,7 @@ export class HapMonitor extends EventEmitter {
               this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
                 + `Got Event: ${JSON.stringify(body.characteristics)}`)
 
-              const response = body.characteristics.forEach((c) => {
+              const response = body.characteristics.map((c) => {
                 // find the matching service for each characteristic
                 const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username)
                 const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid))
@@ -78,6 +78,8 @@ export class HapMonitor extends EventEmitter {
                     return service
                   }
                 }
+
+                return undefined
               })
 
               // push update to listeners
