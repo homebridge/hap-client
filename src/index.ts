@@ -398,6 +398,11 @@ export class HapClient extends EventEmitter {
             .update(`${service.instance.username}${service.aid}${service.iid}${service.type}`)
             .digest('hex')
 
+          // generate a stable name-based unique id that remains consistent even if the accessory aid changes
+          service.nameBasedUniqueId = createHash('sha256')
+            .update([service.instance.name, service.instance.username, service.accessoryInformation.Manufacturer, service.serviceName, service.uuid.slice(0, 8)].join('|'))
+            .digest('hex')
+
           /* Helper function to trigger a call to the accessory to get all the characteristic values */
           service.refreshCharacteristics = () => {
             return this.refreshServiceCharacteristics.bind(this)(service)

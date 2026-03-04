@@ -77,6 +77,7 @@ export interface ServiceType {
   values: any
   instance: HapInstance
   uniqueId?: string
+  nameBasedUniqueId?: string
 }
 
 export interface CharacteristicType {
