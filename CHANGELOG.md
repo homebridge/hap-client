@@ -10,6 +10,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - docs: added new discovery-stopped event to README (#33) (@kovapatrik)
 - fix: restore map in monitor to fix service-update events
 - feat: add `nameBasedUniqueId` for stable device identification (#35) (@copilot)
+- update gen script to adhere to new linting rules
 
 ### Homebridge Dependencies
 
