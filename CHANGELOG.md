@@ -2,13 +2,14 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v3.4.0 (2026-02-26)
+## v3.4.0 (2026-02-24)
 
 ### Changed
 
 - feat: added more granular control for discovery (#32) (@kovapatrik)
-- docs: added new `discovery-stopped` event to README (#33) (@kovapatrik)
-- updated dependencies
+- docs: added new discovery-stopped event to README (#33) (@kovapatrik)
+- fix: restore map in monitor to fix service-update events
+- chore: dependency updates
 
 ### Homebridge Dependencies
 
