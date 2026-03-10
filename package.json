@@ -11,8 +11,8 @@
     "lint:fix": "npm run lint -- --fix",
     "build": "tsc",
     "prepublishOnly": "npm run lint && npm run build",
-    "test": "jest",
-    "test-coverage": "jest --coverage",
+    "test": "vitest run",
+    "test-coverage": "vitest run --coverage",
     "gen": "ts-node scripts/gen-hap-types.ts"
   },
   "repository": {
@@ -48,13 +48,12 @@
   "devDependencies": {
     "@antfu/eslint-config": "^7.7.2",
     "@homebridge/hap-nodejs": "^2.1.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
     "@types/source-map-support": "^0.5.10",
+    "@vitest/coverage-v8": "^4.1.0",
     "eslint-plugin-format": "^2.0.1",
-    "jest": "^30.3.0",
-    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

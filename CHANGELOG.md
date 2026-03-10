@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - chore: update dependencies, apply new lint rules
+- feat: migrate from jest to vitest
 
 ### Homebridge Dependencies
 

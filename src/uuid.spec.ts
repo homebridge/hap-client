@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals'
+import { describe, expect, it } from 'vitest'
 
 // uuid.test.ts
 import { isValid, toLongFormUUID } from './uuid' // Adjust the path as needed
