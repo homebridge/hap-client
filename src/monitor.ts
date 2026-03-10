@@ -141,8 +141,8 @@ export class HapMonitor extends EventEmitter {
 
       if (evCharacteristics.length) {
         // register the instance if it's not already there
-        if (!this.evInstances.find(x => x.username === service.instance.username)) {
-          const newInstance = Object.assign({}, service.instance) as HapEvInstance
+        if (!this.evInstances.some(x => x.username === service.instance.username)) {
+          const newInstance = { ...service.instance } as HapEvInstance
           newInstance.evCharacteristics = []
           this.evInstances.push(newInstance)
         }
@@ -150,7 +150,7 @@ export class HapMonitor extends EventEmitter {
         const instance = this.evInstances.find(x => x.username === service.instance.username)
 
         for (const evCharacteristic of evCharacteristics) {
-          if (!instance.evCharacteristics.find(x => x.aid === service.aid && x.iid === evCharacteristic.iid)) {
+          if (!instance.evCharacteristics.some(x => x.aid === service.aid && x.iid === evCharacteristic.iid)) {
             instance.evCharacteristics.push({ aid: service.aid, iid: evCharacteristic.iid, ev: true })
           }
         }

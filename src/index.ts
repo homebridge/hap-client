@@ -16,6 +16,8 @@ import 'source-map-support/register'
 
 export * from './interfaces'
 
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
+
 export interface Config {
   debug?: boolean
   instanceBlacklist?: string[]
@@ -197,13 +199,13 @@ export class HapClient extends EventEmitter {
       }
 
       // check instance is not on the blacklist
-      if (this.config.instanceBlacklist && this.config.instanceBlacklist.find(x => instance.username.toLowerCase() === x.toLowerCase())) {
+      if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
         this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
         return
       }
 
       for (const ip of device.addresses) {
-        if (ip.match(/^(?:(25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(\.(?!$)|$)){4}$/)) {
+        if (IPV4_REGEX.test(ip)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`)
             const test: HapAccessoriesRespType = (await axios.get(`http://${ip}:${device.port}/accessories`, {

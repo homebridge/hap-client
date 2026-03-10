@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v3.4.1 (Pending Release)
+
+### Changed
+
+- chore: update dependencies, apply new lint rules
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.0`
+
 ## v3.4.0 (2026-03-04)
 
 ### Changed
