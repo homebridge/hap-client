@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 // uuid.test.ts
-import { isValid, toLongFormUUID } from './uuid' // Adjust the path as needed
+import { isValid, toLongFormUUID } from './uuid.js'
 
 describe('uuid utility', () => {
   describe('isValid', () => {

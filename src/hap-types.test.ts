@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { Categories, Characteristics, Enums, Services } from './hap-types'
+import { Categories, Characteristics, Enums, Services } from './hap-types.js'
 
 describe('services', () => {
   it('should be exported', () => {

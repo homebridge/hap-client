@@ -3,18 +3,16 @@ import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 
 import axios from 'axios'
-import Bonjour, { Browser, Service } from 'bonjour-service'
+import { Bonjour, Browser, Service } from 'bonjour-service'
 import decamelize from 'decamelize'
 import { titleize } from 'inflection'
 
-import { Characteristics, Services } from './hap-types'
-import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ResourceRequestType, ServiceType } from './interfaces'
-import { HapMonitor } from './monitor'
-import { toLongFormUUID } from './uuid'
+import { Characteristics, Services } from './hap-types.js'
+import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ResourceRequestType, ServiceType } from './interfaces.js'
+import { HapMonitor } from './monitor.js'
+import { toLongFormUUID } from './uuid.js'
 
-import 'source-map-support/register'
-
-export * from './interfaces'
+export * from './interfaces.js'
 
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
@@ -33,9 +31,9 @@ export class HapClient extends EventEmitter {
   private readonly defaultDiscoveryTimeout: number = 60000
   private readonly defaultAutoStartDiscovery: boolean = true
 
-  private logger: any
-  private pin: string
-  private debugEnabled: boolean = false
+  private readonly logger: any
+  private readonly pin: string
+  private readonly debugEnabled: boolean = false
   private config: Config
 
   private instances: HapInstance[] = []
@@ -423,7 +421,7 @@ export class HapClient extends EventEmitter {
             return this.setCharacteristicsByTypes.bind(this)(service, payload)
           }
 
-          /* Helper function to returns a characteristic by it's type name */
+          /* Helper function to return a characteristic by its type name */
           service.getCharacteristic = (type: string) => {
             return service.serviceCharacteristics.find(c => c.type === type)
           }

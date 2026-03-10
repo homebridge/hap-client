@@ -4,9 +4,8 @@
  */
 
 import { createConnection as netCreateConnection } from 'node:net';
-import { parse } from 'node:url';
 
-import httpMessageParser from './httpParser';
+import httpMessageParser from './httpParser.js';
 
 export const parseMessage = httpMessageParser;
 
@@ -41,7 +40,7 @@ function _headersToString(headers) {
 }
 
 function _buildMessage(request) {
-  const context = parse(request.url);
+  const context = new URL(request.url);
   let message;
 
   message = request.method + ' ' + context.pathname;

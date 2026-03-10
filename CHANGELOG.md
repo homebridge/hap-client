@@ -8,6 +8,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - chore: update dependencies, apply new lint rules
 - feat: migrate from jest to vitest
+- feat: migrate repository to es module
 
 ### Homebridge Dependencies
 

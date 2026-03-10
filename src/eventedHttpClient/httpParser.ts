@@ -86,7 +86,7 @@ function httpMessageParser(message) {
       }
     }
 
-    const headersString = messageString.substr(0, headerNewlineIndex);
+    const headersString = messageString.substring(0, headerNewlineIndex);
     const headers = httpMessageParser._parseHeaders(headersString);
 
     if (Object.keys(headers).length > 0) {
@@ -104,8 +104,7 @@ function httpMessageParser(message) {
 
       if (Array.isArray(boundaryMatch) && boundaryMatch.length) {
         fullBoundary = boundaryMatch[0].replace(/[\r\n]+/gi, '');
-        const boundary = fullBoundary.replace(/^--/, '');
-        result.boundary = boundary;
+        result.boundary = fullBoundary.replace(/^--/, '');
       }
     }
   })();
@@ -124,7 +123,7 @@ function httpMessageParser(message) {
 
     if (headerNewlineIndex > -1) {
       const body = messageString.slice(start, end);
-      result.additional = messageString.slice(end); // Pass back any unparsed data for running thru again
+      result.additional = messageString.slice(end); // Pass back any unparsed data for running through again
       // console.log("Lengths: total %s -> start %s -> end %s -> final %s", messageString.length, start, end, body.length);
 
       if (body && body.length) {
@@ -153,7 +152,7 @@ function httpMessageParser(message) {
     if (result.boundary) {
       const multipartStart = messageString.indexOf(fullBoundary) + fullBoundary.length;
       const multipartEnd = messageString.lastIndexOf(fullBoundary);
-      const multipartBody = messageString.substr(multipartStart, multipartEnd);
+      const multipartBody = messageString.substring(multipartStart, multipartEnd);
       const splitRegex = new RegExp('^' + fullBoundary + '.*[\n\r]?$', 'gm');
       const parts = multipartBody.split(splitRegex);
 
@@ -175,7 +174,7 @@ function httpMessageParser(message) {
         const newlineRegex = /\n\n|\r\n\r\n/gim;
         let newlineIndex = 0;
         let newlineMatch = newlineRegex.exec(part);
-        let body = null;
+        let body;
 
         if (newlineMatch) {
           newlineIndex = newlineMatch.index;
@@ -187,7 +186,7 @@ function httpMessageParser(message) {
           }
         }
 
-        const possibleHeadersString = part.substr(0, newlineIndex);
+        const possibleHeadersString = part.substring(0, newlineIndex);
 
         let startOffset = null;
         let endOffset = null;
@@ -298,8 +297,7 @@ httpMessageParser._headerNewlineRegex = /^[\r\n]+/gim;
 httpMessageParser._boundaryRegex = /(\n|\r\n)+--[\w-]+(\n|\r\n)+/g;
 
 httpMessageParser._createBuffer = function (data) {
-  // tslint:disable-next-line: deprecation
-  return new Buffer(data);
+  return Buffer.from(data);
 };
 
 export default httpMessageParser;
