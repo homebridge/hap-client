@@ -1,25 +1,25 @@
 import { EventEmitter } from 'node:events'
 
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HapClient } from './index'
 
-jest.mock('axios')
+vi.mock('axios')
 
-jest.mock('bonjour-service', () => {
-  return jest.fn().mockImplementation(() => ({
-    stop: jest.fn(),
-    destroy: jest.fn(),
-    find: jest.fn().mockReturnValue({
-      start: jest.fn(),
-      stop: jest.fn(),
-      on: jest.fn(),
-    }),
-  }))
-})
+vi.mock('bonjour-service', () => ({
+  default: class MockBonjour {
+    stop = vi.fn()
+    destroy = vi.fn()
+    find = vi.fn().mockReturnValue({
+      start: vi.fn(),
+      stop: vi.fn(),
+      on: vi.fn(),
+    })
+  },
+}))
 
 describe('hapClient', () => {
-  let hapClient
+  let hapClient: HapClient
 
   beforeEach(() => {
     hapClient = new HapClient({ pin: '123-45-678', config: {} })
