@@ -1,17 +1,17 @@
 import { EventEmitter } from 'node:events'
 
-import { createConnection, parseMessage } from './eventedHttpClient'
-import { HapEvInstance, ServiceType } from './interfaces'
+import { createConnection, parseMessage } from './eventedHttpClient/index.js'
+import { HapEvInstance, ServiceType } from './interfaces.js'
 
 /**
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
  */
 export class HapMonitor extends EventEmitter {
-  private pin
-  private evInstances: HapEvInstance[]
-  private services: ServiceType[]
+  private readonly pin
+  private readonly evInstances: HapEvInstance[]
+  private readonly services: ServiceType[]
   private logger: any
-  private debug: (arg0: string) => void
+  private readonly debug: (arg0: string) => void
 
   constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
     super()

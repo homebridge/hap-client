@@ -18,5 +18,5 @@ export function toLongFormUUID(uuid: string, base = '-0000-1000-8000-0026BB76529
     throw new TypeError('base was not a valid base UUID')
   }
 
-  return ((`00000000${uuid}`).substr(-8) + base).toUpperCase()
+  return ((`00000000${uuid}`).slice(-8) + base).toUpperCase()
 }

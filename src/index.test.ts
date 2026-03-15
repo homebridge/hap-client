@@ -2,12 +2,12 @@ import { EventEmitter } from 'node:events'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { HapClient } from './index'
+import { HapClient } from './index.js'
 
 vi.mock('axios')
 
 vi.mock('bonjour-service', () => ({
-  default: class MockBonjour {
+  Bonjour: class MockBonjour {
     stop = vi.fn()
     destroy = vi.fn()
     find = vi.fn().mockReturnValue({
