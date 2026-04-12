@@ -1,6 +1,6 @@
 {
   "name": "@homebridge/hap-client",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "A client for HAP-NodeJS.",
   "type": "module",
   "main": "dist/index.js",
