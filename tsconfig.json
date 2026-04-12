@@ -11,7 +11,8 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "lib": ["ES2023"]
+    "lib": ["ES2023"],
+    "skipLibCheck": true
   },
   "include": [
     "src/"
@@ -23,6 +24,6 @@
     "node_modules",
     "./dist",
     "./src/**/*.spec.ts",
-    "./src/**/*.test.ts",
+    "./src/**/*.test.ts"
   ]
 }
