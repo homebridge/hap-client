@@ -191,6 +191,11 @@ export class HapClient extends EventEmitter {
             this.emit('instance-configuration-changed', this.instances[existingInstanceIndex])
           }
           this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
+        } else if (this.hapMonitor && !this.hapMonitor.isInstanceConnected(instance.username)) {
+          // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
+          this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
+            + `(${instance.username})] Instance re-announced with closed socket, reconnecting`)
+          this.hapMonitor.refreshMonitorConnection(this.instances[existingInstanceIndex])
         }
 
         return
