@@ -3,6 +3,9 @@ import { EventEmitter } from 'node:events'
 import { createConnection, parseMessage } from './eventedHttpClient/index.js'
 import { HapEvInstance, ServiceType } from './interfaces.js'
 
+const RECONNECT_INITIAL_DELAY_MS = 2000
+const RECONNECT_MAX_DELAY_MS = 30000
+
 /**
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
  */
@@ -12,6 +15,9 @@ export class HapMonitor extends EventEmitter {
   private readonly services: ServiceType[]
   private logger: any
   private readonly debug: (arg0: string) => void
+  private _stopped = false
+  private readonly _reconnectDelays = new Map<string, number>()
+  private readonly _reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
     super()
@@ -93,6 +99,9 @@ export class HapMonitor extends EventEmitter {
       instance.socket.on('close', (hadError) => {
         this.emit('monitor-close', instance, hadError)
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`)
+        if (!this._stopped) {
+          this._scheduleReconnect(instance)
+        }
       })
       instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
         this.emit('monitor-error', instance, error)
@@ -106,6 +115,12 @@ export class HapMonitor extends EventEmitter {
   }
 
   finish() {
+    this._stopped = true
+    for (const timer of this._reconnectTimers.values()) {
+      clearTimeout(timer)
+    }
+    this._reconnectTimers.clear()
+    this._reconnectDelays.clear()
     for (const instance of this.evInstances) {
       if (instance.socket) {
         try {
@@ -124,14 +139,64 @@ export class HapMonitor extends EventEmitter {
     // console.log('this.evInstances', this.evInstances);
     const instance = this.evInstances.find(x => x.username === refreshInstance.username)
     if (instance) {
-      instance.socket.destroy()
-      instance.socket.removeAllListeners()
+      this._cancelReconnect(instance.username)
+      if (instance.socket) {
+        instance.socket.destroy()
+        instance.socket.removeAllListeners()
+      }
       instance.port = refreshInstance.port
       instance.ipAddress = refreshInstance.ipAddress
 
       this.connectInstance(instance)
       this.emit('monitor-refresh', instance)
     }
+  }
+
+  /**
+   * Returns true if the monitor has an active (non-destroyed) socket for the
+   * given instance username, false otherwise.
+   */
+  isInstanceConnected(username: string): boolean {
+    const instance = this.evInstances.find(x => x.username === username)
+    return instance?.socket != null && !instance.socket.destroyed
+  }
+
+  /**
+   * Cancels any pending reconnect timer for the given instance username and
+   * resets its backoff delay, so the next reconnect starts from the initial delay.
+   */
+  private _cancelReconnect(username: string) {
+    const timer = this._reconnectTimers.get(username)
+    if (timer) {
+      clearTimeout(timer)
+      this._reconnectTimers.delete(username)
+    }
+    this._reconnectDelays.delete(username)
+  }
+
+  /**
+   * Schedules a reconnect attempt for the given instance using exponential backoff
+   * with jitter. The first attempt fires after RECONNECT_INITIAL_DELAY_MS; each
+   * subsequent attempt doubles the delay up to RECONNECT_MAX_DELAY_MS. A random
+   * jitter of up to 1 second is added to spread reconnects. Emits 'monitor-refresh'
+   * when the reconnect attempt is made.
+   */
+  private _scheduleReconnect(instance: HapEvInstance) {
+    const delay = this._reconnectDelays.get(instance.username) ?? RECONNECT_INITIAL_DELAY_MS
+    const jitter = Math.floor(Math.random() * 1000)
+    const nextDelay = Math.min(delay * 2, RECONNECT_MAX_DELAY_MS)
+    this._reconnectDelays.set(instance.username, nextDelay)
+
+    const timer = setTimeout(() => {
+      this._reconnectTimers.delete(instance.username)
+      if (!this._stopped) {
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Reconnecting`)
+        this.connectInstance(instance)
+        this.emit('monitor-refresh', instance)
+      }
+    }, delay + jitter)
+
+    this._reconnectTimers.set(instance.username, timer)
   }
 
   parseServices() {
