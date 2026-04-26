@@ -1,9 +1,11 @@
+import type { HapEvInstance, ServiceType } from './interfaces.js'
+
 import { EventEmitter } from 'node:events'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createConnection } from './eventedHttpClient/index.js'
 import { HapMonitor } from './monitor.js'
-import type { HapEvInstance, ServiceType } from './interfaces.js'
 
 // Mock the eventedHttpClient module
 vi.mock('./eventedHttpClient/index.js', () => {
@@ -26,46 +28,46 @@ vi.mock('./eventedHttpClient/index.js', () => {
   }
 })
 
-import { createConnection } from './eventedHttpClient/index.js'
-
-const buildService = (username: string): ServiceType => ({
-  aid: 1,
-  iid: 1,
-  uuid: '00000001-0000-1000-8000-0026BB765291',
-  type: 'Switch',
-  humanType: 'Switch',
-  serviceName: 'My Switch',
-  serviceCharacteristics: [
-    {
-      aid: 1,
-      iid: 2,
-      uuid: '00000025-0000-1000-8000-0026BB765291',
-      type: 'On',
-      serviceType: 'Switch',
-      serviceName: 'My Switch',
-      description: 'On',
-      value: false,
-      format: 'bool',
-      perms: ['pr', 'pw', 'ev'],
-      canRead: true,
-      canWrite: true,
-      ev: true,
+function buildService(username: string): ServiceType {
+  return {
+    aid: 1,
+    iid: 1,
+    uuid: '00000001-0000-1000-8000-0026BB765291',
+    type: 'Switch',
+    humanType: 'Switch',
+    serviceName: 'My Switch',
+    serviceCharacteristics: [
+      {
+        aid: 1,
+        iid: 2,
+        uuid: '00000025-0000-1000-8000-0026BB765291',
+        type: 'On',
+        serviceType: 'Switch',
+        serviceName: 'My Switch',
+        description: 'On',
+        value: false,
+        format: 'bool',
+        perms: ['pr', 'pw', 'ev'],
+        canRead: true,
+        canWrite: true,
+        ev: true,
+      },
+    ],
+    accessoryInformation: {},
+    values: {},
+    instance: {
+      name: 'Test Bridge',
+      username,
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
     },
-  ],
-  accessoryInformation: {},
-  values: {},
-  instance: {
-    name: 'Test Bridge',
-    username,
-    ipAddress: '127.0.0.1',
-    port: 51826,
-    services: [],
-    connectionFailedCount: 0,
-    configurationNumber: 1,
-  },
-})
+  }
+}
 
-describe('HapMonitor', () => {
+describe('hapMonitor', () => {
   let monitor: HapMonitor
   const username = 'AA:BB:CC:DD:EE:FF'
 

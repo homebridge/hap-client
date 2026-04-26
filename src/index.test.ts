@@ -81,7 +81,7 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
     // Simulate bonjour re-announcing the same device (same port/name/configurationNumber)
     await upHandler({
-      txt: { md: 'Test Bridge', id: username, 'c#': 1 },
+      txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
       port: 51826,
       addresses: [],
     })
@@ -111,7 +111,7 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     }
 
     await upHandler({
-      txt: { md: 'Test Bridge', id: username, 'c#': 1 },
+      txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
       port: 51826,
       addresses: [],
     })
@@ -119,4 +119,3 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     expect(refreshMonitorConnectionSpy).not.toHaveBeenCalled()
   })
 })
-
