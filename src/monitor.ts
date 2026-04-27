@@ -12,9 +12,6 @@ export class HapMonitor extends EventEmitter {
   private readonly services: ServiceType[]
   private logger: any
   private readonly debug: (arg0: string) => void
-  private _stopped = false
-  private readonly _reconnectDelays = new Map<string, number>()
-  private readonly _reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
     super()
@@ -112,12 +109,6 @@ export class HapMonitor extends EventEmitter {
   }
 
   finish() {
-    this._stopped = true
-    for (const timer of this._reconnectTimers.values()) {
-      clearTimeout(timer)
-    }
-    this._reconnectTimers.clear()
-    this._reconnectDelays.clear()
     for (const instance of this.evInstances) {
       if (instance.socket) {
         try {

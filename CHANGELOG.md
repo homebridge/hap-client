@@ -6,7 +6,8 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
-- 
+- Fixed implementation of instanceBlacklist, so that a black listed username is blocked
+- Tweaked implementation of monitor-refresh to handle the scenario of a restart, but without the client port changing.
 
 ### Homebridge Dependencies
 
