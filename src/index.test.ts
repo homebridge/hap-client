@@ -74,11 +74,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     // Attach a mock hapMonitor with the socket marked as closed
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-        isInstanceConnected: vi.fn().mockReturnValue(false),
-        isInstanceMonitored: vi.fn().mockReturnValue(true),
-        refreshMonitorConnection: refreshMonitorConnectionSpy,
-        finish: vi.fn(),
-      }
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: refreshMonitorConnectionSpy,
+      finish: vi.fn(),
+    }
 
     // Simulate bonjour re-announcing the same device (same port/name/configurationNumber)
     await upHandler({
@@ -106,11 +106,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-        isInstanceConnected: vi.fn().mockReturnValue(true),
-        isInstanceMonitored: vi.fn().mockReturnValue(true),
-        refreshMonitorConnection: refreshMonitorConnectionSpy,
-        finish: vi.fn(),
-      }
+      isInstanceConnected: vi.fn().mockReturnValue(true),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: refreshMonitorConnectionSpy,
+      finish: vi.fn(),
+    }
 
     await upHandler({
       txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
