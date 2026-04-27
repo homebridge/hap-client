@@ -171,6 +171,12 @@ export class HapClient extends EventEmitter {
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`)
 
+      // check instance is not on the blacklist
+      if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
+        return
+      }
+
       // update an existing instance
       const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username)
       if (existingInstanceIndex > -1) {
@@ -191,19 +197,13 @@ export class HapClient extends EventEmitter {
             this.emit('instance-configuration-changed', this.instances[existingInstanceIndex])
           }
           this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
-        } else if (this.hapMonitor && !this.hapMonitor.isInstanceConnected(instance.username)) {
+        } else if (this.hapMonitor && this.hapMonitor.isInstanceMonitored(instance.username) && !this.hapMonitor.isInstanceConnected(instance.username)) {
           // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
             + `(${instance.username})] Instance re-announced with closed socket, reconnecting`)
           this.hapMonitor.refreshMonitorConnection(this.instances[existingInstanceIndex])
         }
 
-        return
-      }
-
-      // check instance is not on the blacklist
-      if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
-        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
         return
       }
 

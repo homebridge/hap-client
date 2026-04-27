@@ -6,12 +6,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
-- Fix `HapMonitor` sockets not reconnecting after a same-port HAP instance restart
-  - `HapMonitor` now automatically schedules reconnection with exponential backoff (2 s → 30 s + jitter) when a socket closes unexpectedly
-  - `finish()` sets a stopped flag and cancels all pending reconnect timers so reconnects do not fire after the monitor is deliberately torn down
-  - `refreshMonitorConnection()` cancels any pending reconnect timer before creating a new connection to avoid duplicate reconnects
-  - Added `isInstanceConnected(username)` public helper to query live socket state
-  - The bonjour `up` handler in `HapClient` now also triggers an immediate reconnect when a re-announced instance has an unchanged port/name/`c#` but a closed socket
+- 
 
 ### Homebridge Dependencies
 
