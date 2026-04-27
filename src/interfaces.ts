@@ -17,6 +17,7 @@ export interface HapEvInstance {
   username: string
   evCharacteristics?: { aid: number, iid: number, ev: boolean }[]
   socket?: Socket
+  monitoring?: boolean
 }
 
 export interface HapAccessoriesRespType {

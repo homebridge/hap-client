@@ -32,7 +32,7 @@ The discovery timeout can be configured by setting the `discoveryTimeout` proper
 const { HapClient } = require('@homebridge/hap-client');
 
 this.hapClient = new HapClient({
-  config: { debug: true, discoveryTimeout: 5000 },
+  config: { debug: true, discoveryTimeout: 5000, instanceBlacklist: ['34:42:4E:4A:38:00', '6E:69:51:34:54:00']},
   pin: config.username,
   logger: this.log,
 });
@@ -76,7 +76,7 @@ this.monitor.on('monitor-close', this.monitorClose(instance, hadError)); // Emit
 
 this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted when the connection to a homebridge service has an error ( likely a restart )
 
-this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed ( Triggered when an instance is discovered and its port, configuration number or name has changed)
+this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed or restarted
 ```
 
 
