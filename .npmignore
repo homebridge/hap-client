@@ -66,3 +66,9 @@ yarn.lock
 # dotenv environment variables file
 .env
 .DS_Store
+
+# Other
+
+scripts/
+eslint.config.mjs
+vitest.config.ts
