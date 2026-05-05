@@ -143,7 +143,7 @@ export class HapMonitor extends EventEmitter {
    */
   isInstanceMonitored(username: string): boolean {
     const instance = this.evInstances.find(x => x.username === username)
-    return instance?.monitoring
+    return instance?.monitoring === true
   }
 
   /**
