@@ -2,6 +2,17 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v4.0.4 (2026-05-06)
+
+### Changed
+
+- Fixed the `instanceBlacklist` implementation so that blacklisted usernames are blocked correctly.
+- Tweaked the `monitor-refresh` implementation to handle restart scenarios where the client port does not change.
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.3`
+  
 ## v4.0.3 (2026-04-12)
 
 ### Changed

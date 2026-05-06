@@ -19,7 +19,7 @@ export class HapMonitor extends EventEmitter {
     this.debug = debug
     this.pin = pin
     this.services = services
-    this.evInstances = []
+    this.evInstances = [] as HapEvInstance[]
 
     // get a list of characteristics we can watch for each instance
     this.parseServices()
@@ -46,6 +46,7 @@ export class HapMonitor extends EventEmitter {
     try {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`)
       instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics })
+      instance.monitoring = true
 
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`)
 
@@ -92,6 +93,8 @@ export class HapMonitor extends EventEmitter {
       })
       instance.socket.on('close', (hadError) => {
         this.emit('monitor-close', instance, hadError)
+        instance.socket.destroy()
+        instance.socket.removeAllListeners()
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`)
       })
       instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
@@ -132,6 +135,24 @@ export class HapMonitor extends EventEmitter {
       this.connectInstance(instance)
       this.emit('monitor-refresh', instance)
     }
+  }
+
+  /**
+   * Returns true if the instance is being monitored (i.e. has an active socket or is in the process of reconnecting) for the
+   * given instance username, false otherwise.
+   */
+  isInstanceMonitored(username: string): boolean {
+    const instance = this.evInstances.find(x => x.username === username)
+    return instance?.monitoring === true
+  }
+
+  /**
+   * Returns true if the monitor has an active (non-destroyed) socket for the
+   * given instance username, false otherwise.
+   */
+  isInstanceConnected(username: string): boolean {
+    const instance = this.evInstances.find(x => x.username === username)
+    return instance?.socket != null && instance?.socket !== undefined && !instance.socket.destroyed
   }
 
   parseServices() {
