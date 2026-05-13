@@ -19,6 +19,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: remove browser listeners on discovery stop
 - fix: guard against undefined socket in refreshMonitorConnection
 - fix: route HapMonitor errors to logger.error
+- fix: use byte length for Content-Length in evented HTTP client
 
 ### Homebridge Dependencies
 
