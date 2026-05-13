@@ -121,3 +121,43 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     expect(refreshMonitorConnectionSpy).not.toHaveBeenCalled()
   })
 })
+
+describe('hapClient bonjour up handler - missing id', () => {
+  let hapClient: HapClient
+  let upHandler: (device: any) => Promise<void>
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false, instanceBlacklist: ['ZZ:ZZ:ZZ:ZZ:ZZ:ZZ'] } })
+    hapClient.startDiscovery()
+
+    const upCall = mockBrowserOn.mock.calls.find(([event]) => event === 'up')
+    upHandler = upCall?.[1]
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('should not throw when device.txt.id is missing and a blacklist is configured', async () => {
+    // Without the guard, instance.username = undefined and the blacklist check
+    // calls `undefined.toLowerCase()`, which throws TypeError.
+    await expect(upHandler({
+      txt: { 'c#': 1, 'md': 'Test Bridge' },
+      port: 51826,
+      addresses: ['127.0.0.1'],
+    })).resolves.toBeUndefined()
+
+    // No instance should have been registered.
+    expect((hapClient as any).instances.length).toBe(0)
+  })
+
+  it('should not throw when device.txt.id is empty string', async () => {
+    await expect(upHandler({
+      txt: { 'c#': 1, 'id': '', 'md': 'Test Bridge' },
+      port: 51826,
+      addresses: ['127.0.0.1'],
+    })).resolves.toBeUndefined()
+
+    expect((hapClient as any).instances.length).toBe(0)
+  })
+})

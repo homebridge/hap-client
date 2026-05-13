@@ -158,6 +158,10 @@ export class HapClient extends EventEmitter {
         this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`)
         return
       }
+      if (typeof device.txt.id !== 'string' || !device.txt.id) {
+        this.debug(`[HapClient] Discovery :: Ignoring device with missing or invalid id txt record. ${JSON.stringify(device)}`)
+        return
+      }
 
       const instance: HapInstance = {
         name: device.txt.md,
