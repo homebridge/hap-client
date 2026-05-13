@@ -17,6 +17,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: guard getCharacteristic against empty or value-less response
 - fix: skip empty PUT when setCharacteristicsByTypes payload is filtered out
 - fix: remove browser listeners on discovery stop
+- fix: guard against undefined socket in refreshMonitorConnection
 
 ### Homebridge Dependencies
 

@@ -127,8 +127,8 @@ export class HapMonitor extends EventEmitter {
     // console.log('this.evInstances', this.evInstances);
     const instance = this.evInstances.find(x => x.username === refreshInstance.username)
     if (instance) {
-      instance.socket.destroy()
-      instance.socket.removeAllListeners()
+      instance.socket?.destroy()
+      instance.socket?.removeAllListeners()
       instance.port = refreshInstance.port
       instance.ipAddress = refreshInstance.ipAddress
 

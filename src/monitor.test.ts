@@ -131,4 +131,19 @@ describe('hapMonitor', () => {
       expect(createConnection).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('refreshMonitorConnection', () => {
+    it('should not throw when the instance has no socket assigned', () => {
+      // Reproduces the state where connectInstance previously failed inside its
+      // try/catch and never assigned instance.socket.
+      const instance = (monitor as any).evInstances[0]
+      instance.socket = undefined
+
+      expect(() => monitor.refreshMonitorConnection({
+        ...instance,
+        port: 51827,
+        ipAddress: '127.0.0.2',
+      })).not.toThrow()
+    })
+  })
 })
