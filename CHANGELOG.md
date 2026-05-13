@@ -18,6 +18,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: skip empty PUT when setCharacteristicsByTypes payload is filtered out
 - fix: remove browser listeners on discovery stop
 - fix: guard against undefined socket in refreshMonitorConnection
+- fix: route HapMonitor errors to logger.error
 
 ### Homebridge Dependencies
 

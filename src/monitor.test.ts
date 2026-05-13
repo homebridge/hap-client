@@ -132,6 +132,24 @@ describe('hapMonitor', () => {
     })
   })
 
+  describe('error logging', () => {
+    it('should call logger.error rather than logger.log when error() is invoked', () => {
+      const logSpy = vi.fn()
+      const errorSpy = vi.fn()
+      const services = [buildService('CC:CC:CC:CC:CC:CC')]
+      const m = new HapMonitor({ log: logSpy, error: errorSpy }, vi.fn(), '031-45-154', services)
+
+      m.error('boom')
+
+      // Without the fix the message went through `logger.log` with a manual
+      // "ERROR:" prefix, so anything filtering by log level missed it.
+      expect(errorSpy).toHaveBeenCalledWith('[HapMonitor] boom')
+      expect(logSpy).not.toHaveBeenCalled()
+
+      m.finish()
+    })
+  })
+
   describe('refreshMonitorConnection', () => {
     it('should not throw when the instance has no socket assigned', () => {
       // Reproduces the state where connectInstance previously failed inside its
