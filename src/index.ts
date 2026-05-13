@@ -134,7 +134,9 @@ export class HapClient extends EventEmitter {
       try {
         this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`)
         this.browser.update()
-      } catch { /* do nothing */ }
+      } catch (e) {
+        this.debug(`[HapClient] Discovery :: Failed to re-broadcast discovery query: ${e?.message ?? e}`)
+      }
     }
   }
 
