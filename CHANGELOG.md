@@ -21,6 +21,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: route HapMonitor errors to logger.error
 - fix: use byte length for Content-Length in evented HTTP client
 - fix: parse full body when Content-Length missing in httpParser
+- fix: surface refreshInstances browser.update errors
 
 ### Homebridge Dependencies
 

@@ -10,6 +10,7 @@ vi.mock('axios')
 
 let mockBrowserOn: ReturnType<typeof vi.fn>
 let mockBrowserRemoveAllListeners: ReturnType<typeof vi.fn>
+let mockBrowserUpdate: ReturnType<typeof vi.fn>
 
 vi.mock('bonjour-service', () => ({
   Bonjour: class MockBonjour {
@@ -18,11 +19,13 @@ vi.mock('bonjour-service', () => ({
     find = vi.fn().mockImplementation(() => {
       mockBrowserOn = vi.fn()
       mockBrowserRemoveAllListeners = vi.fn()
+      mockBrowserUpdate = vi.fn()
       return {
         start: vi.fn(),
         stop: vi.fn(),
         on: mockBrowserOn,
         removeAllListeners: mockBrowserRemoveAllListeners,
+        update: mockBrowserUpdate,
       }
     })
   },
@@ -491,6 +494,30 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
 
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
+  })
+
+  it('refreshInstances should log when browser.update() throws instead of swallowing the error', () => {
+    const debugSpy = vi.fn()
+    const localClient = new HapClient({
+      pin: '123-45-678',
+      logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn(), debug: debugSpy },
+      config: { autoStartDiscovery: false, debug: true },
+    })
+    localClient.startDiscovery()
+
+    // Force browser.update() to throw — without the fix the bare catch
+    // block silently swallows it, hiding any underlying state corruption.
+    const err = new Error('mdns socket not bound')
+    mockBrowserUpdate.mockImplementation(() => {
+      throw err
+    })
+
+    localClient.refreshInstances()
+
+    const calls = debugSpy.mock.calls.map(c => c[0] as string)
+    expect(calls.some(msg => msg.includes('Failed to re-broadcast') && msg.includes('mdns socket not bound'))).toBe(true)
+
+    localClient.destroy()
   })
 
   it('stopDiscovery should remove listeners from the browser to avoid leaking handlers', () => {
