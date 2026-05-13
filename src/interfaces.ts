@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { Socket } from 'node:net'
 
 export interface HapInstance {
@@ -18,6 +19,7 @@ export interface HapEvInstance {
   evCharacteristics?: { aid: number, iid: number, ev: boolean }[]
   socket?: Socket
   monitoring?: boolean
+  recvBuffer?: Buffer
 }
 
 export interface HapAccessoriesRespType {
