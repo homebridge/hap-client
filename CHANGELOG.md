@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - fix: guard against missing username in HAP advertisement
+- fix: skip splice when failing instance is no longer in pool
 
 ### Homebridge Dependencies
 
