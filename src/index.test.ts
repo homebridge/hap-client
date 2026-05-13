@@ -362,6 +362,96 @@ describe('hapClient getAllServices - null Name characteristic value', () => {
   })
 })
 
+describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
+  let hapClient: HapClient
+
+  function buildService() {
+    return {
+      aid: 1,
+      iid: 1,
+      uuid: '00000049-0000-1000-8000-0026BB765291',
+      type: 'Switch',
+      humanType: 'Switch',
+      serviceName: 'My Switch',
+      serviceCharacteristics: [
+        {
+          aid: 1,
+          iid: 10,
+          uuid: '00000025-0000-1000-8000-0026BB765291',
+          type: 'On',
+          serviceType: 'Switch',
+          serviceName: 'My Switch',
+          description: 'On',
+          value: true,
+          format: 'bool' as const,
+          perms: ['pr', 'pw', 'ev'] as ('pr' | 'pw' | 'ev')[],
+          canRead: true,
+          canWrite: true,
+          ev: true,
+        },
+      ],
+      accessoryInformation: {},
+      values: { On: true },
+      instance: {
+        name: 'Test Bridge',
+        username: 'AA:BB:CC:DD:EE:FF',
+        ipAddress: '127.0.0.1',
+        port: 51826,
+        services: [],
+        connectionFailedCount: 0,
+        configurationNumber: 1,
+      },
+    }
+  }
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    vi.restoreAllMocks()
+  })
+
+  it('should skip response characteristics whose iid is not in the service', async () => {
+    const service = buildService() as any
+
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        characteristics: [
+          // iid 99 is not in the service — without the guard `characteristic.value = c.value` throws.
+          { aid: 1, iid: 99, value: false },
+        ],
+      },
+    } as any)
+
+    await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
+
+    // Cached value untouched because the only response entry was a stale iid.
+    expect(service.serviceCharacteristics[0].value).toBe(true)
+    expect(service.values.On).toBe(true)
+  })
+
+  it('should preserve cached value when HAP returns a value-less entry (status error)', async () => {
+    const service = buildService() as any
+
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        // HAP returns `{ aid, iid, status }` with no `value` field on per-char errors.
+        // Without the guard `characteristic.value = c.value` overwrites `true` with `undefined`.
+        characteristics: [
+          { aid: 1, iid: 10, status: -70402 },
+        ],
+      },
+    } as any)
+
+    await hapClient.refreshServiceCharacteristics(service)
+
+    expect(service.serviceCharacteristics[0].value).toBe(true)
+    expect(service.values.On).toBe(true)
+  })
+})
+
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
   let hapClient: HapClient
 
