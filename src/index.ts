@@ -496,6 +496,9 @@ export class HapClient extends EventEmitter {
 
       resp.characteristics.forEach((c) => {
         const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid)
+        if (!characteristic || c.value === undefined) {
+          return
+        }
         characteristic.value = c.value
         service.values[characteristic.type] = c.value
       })
