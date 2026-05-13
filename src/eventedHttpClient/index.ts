@@ -49,7 +49,8 @@ function _buildMessage(request) {
   }
   message = message + ' HTTP/1.1\r\nHost: ' + context.host + '\r\n' + _headersToString(request.headers);
   if (request.body) {
-    message = message + 'Content-Length: ' + request.body.length + '\r\n\r\n' + request.body + '\r\n\r\n';
+    const contentLength = Buffer.byteLength(request.body, 'utf8');
+    message = message + 'Content-Length: ' + contentLength + '\r\n\r\n' + request.body + '\r\n\r\n';
   } else {
     message = message + '\r\n\r\n';
   }
