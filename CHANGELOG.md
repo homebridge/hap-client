@@ -15,6 +15,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: handle null Name characteristic value when deriving serviceName
 - fix: skip unmatched or value-less entries in characteristic refresh response
 - fix: guard getCharacteristic against empty or value-less response
+- fix: skip empty PUT when setCharacteristicsByTypes payload is filtered out
 
 ### Homebridge Dependencies
 

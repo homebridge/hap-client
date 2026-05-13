@@ -594,6 +594,9 @@ export class HapClient extends EventEmitter {
         value,
       }
     }).filter(item => item !== null)
+    if (!characteristics.length) {
+      return service
+    }
     return this.setCharacteristics(service, characteristics)
   }
 
