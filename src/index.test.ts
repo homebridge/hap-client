@@ -9,6 +9,7 @@ import { HapClient } from './index.js'
 vi.mock('axios')
 
 let mockBrowserOn: ReturnType<typeof vi.fn>
+let mockBrowserRemoveAllListeners: ReturnType<typeof vi.fn>
 
 vi.mock('bonjour-service', () => ({
   Bonjour: class MockBonjour {
@@ -16,10 +17,12 @@ vi.mock('bonjour-service', () => ({
     destroy = vi.fn()
     find = vi.fn().mockImplementation(() => {
       mockBrowserOn = vi.fn()
+      mockBrowserRemoveAllListeners = vi.fn()
       return {
         start: vi.fn(),
         stop: vi.fn(),
         on: mockBrowserOn,
+        removeAllListeners: mockBrowserRemoveAllListeners,
       }
     })
   },
@@ -488,6 +491,20 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
 
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
+  })
+
+  it('stopDiscovery should remove listeners from the browser to avoid leaking handlers', () => {
+    hapClient.startDiscovery()
+
+    // Capture the current browser's spies before stopDiscovery wipes references.
+    const capturedRemoveAllListeners = mockBrowserRemoveAllListeners
+
+    hapClient.stopDiscovery()
+
+    // Without the fix the old browser keeps its `up` listener attached even
+    // though the browser is stopped — every subsequent startDiscovery created
+    // a fresh browser, so handlers accumulate across cycles.
+    expect(capturedRemoveAllListeners).toHaveBeenCalled()
   })
 
   it('setCharacteristicsByTypes should not send an empty PUT when only Configured Name is in the payload', async () => {
