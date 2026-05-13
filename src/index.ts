@@ -312,6 +312,7 @@ export class HapClient extends EventEmitter {
   public async monitorCharacteristics(services?: ServiceType[]) {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices()
+    this.hapMonitor?.finish()
     this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), this.pin, services)
     return this.hapMonitor
   }

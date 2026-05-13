@@ -220,3 +220,27 @@ describe('hapClient getAccessories - failing instance removal', () => {
     expect((hapClient as any).instances).toContain(healthyInstance)
   })
 })
+
+describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
+  let hapClient: HapClient
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('should call finish() on the previous monitor before replacing it', async () => {
+    const previousFinish = vi.fn()
+    ;(hapClient as any).hapMonitor = { finish: previousFinish }
+
+    // Pass an empty services array so HapMonitor construction doesn't try to open sockets.
+    await hapClient.monitorCharacteristics([])
+
+    // Without the fix the previous monitor was overwritten without finish(),
+    // leaking all of its open sockets.
+    expect(previousFinish).toHaveBeenCalledTimes(1)
+  })
+})
