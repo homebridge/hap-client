@@ -101,7 +101,7 @@ export class HapClient extends EventEmitter {
   // Example usage in methods
   public resetInstancePool() {
     if (this.discoveryInProgress) {
-      this.browser.stop()
+      this.browser?.stop()
       this.debug(`[HapClient] Discovery :: Terminated`)
       this.discoveryInProgress = false
       this.emit('discovery-terminated')

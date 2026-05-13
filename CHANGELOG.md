@@ -11,6 +11,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: tear down previous monitor before replacing in monitorCharacteristics
 - fix: clear stale startDiscoveryTimeout in resetInstancePool
 - fix: clear pending resetInstancePoolTimeout before reassigning
+- fix: null-check browser before stopping in resetInstancePool
 
 ### Homebridge Dependencies
 
