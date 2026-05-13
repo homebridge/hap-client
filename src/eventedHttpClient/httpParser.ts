@@ -134,7 +134,9 @@ function httpMessageParser(message) {
             if (result.headers['Content-Length']) {
               result.body = body;
             } else {
-              result.body = body.split('\n')[1];
+              // No Content-Length: keep the full body, only trimming the leading
+              // newline that sits between headers and body.
+              result.body = body.replace(/^[\r\n]+/, '');
             }
           } catch (err) {
 
