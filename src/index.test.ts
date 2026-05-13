@@ -489,6 +489,35 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
   })
+
+  it('setCharacteristicsByTypes should not send an empty PUT when only Configured Name is in the payload', async () => {
+    // Service with both an "On" characteristic and a "Configured Name" characteristic.
+    const service = buildService() as any
+    service.serviceCharacteristics.push({
+      aid: 1,
+      iid: 11,
+      uuid: '000000E3-0000-1000-8000-0026BB765291',
+      type: 'Configured Name',
+      serviceType: 'Switch',
+      serviceName: 'My Switch',
+      description: 'Configured Name',
+      value: 'Foo',
+      format: 'string',
+      perms: ['pr', 'pw'],
+      canRead: true,
+      canWrite: true,
+      ev: false,
+    })
+
+    const putSpy = vi.mocked(axios.put).mockResolvedValue({ data: {} } as any)
+    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [] } } as any)
+
+    await hapClient.setCharacteristicsByTypes(service, { 'Configured Name': 'Bar' })
+
+    // Without the guard the function called setCharacteristics with `[]`,
+    // which sends `PUT /characteristics { characteristics: [] }` to HAP.
+    expect(putSpy).not.toHaveBeenCalled()
+  })
 })
 
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
