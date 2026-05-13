@@ -362,14 +362,16 @@ export class HapClient extends EventEmitter {
         .forEach((s) => {
           let serviceName = s.characteristics.find(x => x.type === Characteristics.Name)
 
-          /* Set default name characteristic if none defined */
-          serviceName = serviceName || {
-            iid: 0,
-            type: Characteristics.Name,
-            description: 'Name',
-            format: 'string',
-            value: accessoryInformation.Name || this.humanizeString(Services[s.type]),
-            perms: ['pr'],
+          /* Set default name characteristic if none defined or value is null/undefined */
+          if (!serviceName || serviceName.value === null || serviceName.value === undefined) {
+            serviceName = {
+              iid: 0,
+              type: Characteristics.Name,
+              description: 'Name',
+              format: 'string',
+              value: accessoryInformation.Name || this.humanizeString(Services[s.type]),
+              perms: ['pr'],
+            }
           }
 
           /* Parse Service Characteristics */

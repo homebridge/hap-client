@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import axios from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { Characteristics, Services } from './hap-types.js'
 import { HapClient } from './index.js'
 
 vi.mock('axios')
@@ -282,6 +283,82 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
     ;(hapClient as any).browser = undefined
 
     expect(() => hapClient.resetInstancePool()).not.toThrow()
+  })
+})
+
+describe('hapClient getAllServices - null Name characteristic value', () => {
+  let hapClient: HapClient
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    vi.restoreAllMocks()
+  })
+
+  it('should not throw when an accessory exposes a Name characteristic with a null value', async () => {
+    // Switch service UUID + Name characteristic UUID, both in long form.
+    const switchUuid = Object.keys(Services).find(k => Services[k] === 'Switch')!
+    const onUuid = Object.keys(Characteristics).find(k => Characteristics[k] === 'On')!
+
+    const instance = {
+      name: 'Test Bridge',
+      username: 'AA:BB:CC:DD:EE:FF',
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [instance]
+
+    vi.mocked(axios.get).mockResolvedValue({
+      data: {
+        accessories: [
+          {
+            aid: 1,
+            services: [
+              {
+                iid: 1,
+                type: switchUuid,
+                primary: true,
+                hidden: false,
+                characteristics: [
+                  // Name characteristic exists but value is null — the previous
+                  // fallback only fired when the characteristic was missing.
+                  {
+                    iid: 2,
+                    type: Characteristics.Name,
+                    description: 'Name',
+                    value: null,
+                    format: 'string',
+                    perms: ['pr'],
+                  },
+                  {
+                    iid: 3,
+                    type: onUuid,
+                    description: 'On',
+                    value: false,
+                    format: 'bool',
+                    perms: ['pr', 'pw', 'ev'],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    } as any)
+
+    // getAllServices() must resolve (not reject) when a Name characteristic
+    // has a null value; awaiting it directly fails the test if it throws.
+    const services = await hapClient.getAllServices()
+
+    // Should fall back to the humanised service name.
+    expect(services).toHaveLength(1)
+    expect(services[0].serviceName).toBe('Switch')
   })
 })
 
