@@ -259,6 +259,21 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
     vi.advanceTimersByTime(16000) // t=76s
     expect(discoveryEndedSpy).toHaveBeenCalledTimes(1)
   })
+
+  it('should not stack resetInstancePoolTimeouts when called repeatedly', () => {
+    const refreshSpy = vi.spyOn(hapClient, 'refreshInstances').mockImplementation(() => {})
+
+    hapClient.resetInstancePool()
+    hapClient.resetInstancePool()
+    hapClient.resetInstancePool()
+
+    // Advance past the 6s delay.
+    vi.advanceTimersByTime(6000)
+
+    // With the bug each call set a new timeout without clearing the previous one,
+    // so refreshInstances would have fired three times. With the fix it fires once.
+    expect(refreshSpy).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
