@@ -221,6 +221,46 @@ describe('hapClient getAccessories - failing instance removal', () => {
   })
 })
 
+describe('hapClient resetInstancePool - stale discovery timeout', () => {
+  let hapClient: HapClient
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    vi.useRealTimers()
+  })
+
+  it('should not end the new discovery early when reset happens before the previous 60s timeout', () => {
+    // Discovery 1 starts at t=0 with a 60s timeout.
+    hapClient.startDiscovery()
+
+    // Reset at t=10s — without the fix the original 60s timeout is left pending.
+    vi.advanceTimersByTime(10000)
+    hapClient.resetInstancePool()
+
+    // The reset's 6s timer fires refreshInstances, which starts discovery 2.
+    const discoveryEndedSpy = vi.fn()
+    hapClient.on('discovery-ended', discoveryEndedSpy)
+    vi.advanceTimersByTime(6000) // t=16s, new discovery begins with its own 60s timer
+
+    // Advance to t=60s — the *original* timeout's firing time.
+    vi.advanceTimersByTime(44000)
+
+    // With the bug: the stale 60s timeout fires here, stops the new browser
+    // and emits 'discovery-ended' only 44s into the new discovery.
+    // With the fix: it was cleared in resetInstancePool, so no event yet.
+    expect(discoveryEndedSpy).not.toHaveBeenCalled()
+
+    // The new discovery's own 60s should fire at t=76s.
+    vi.advanceTimersByTime(16000) // t=76s
+    expect(discoveryEndedSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
   let hapClient: HapClient
 
