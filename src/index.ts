@@ -106,6 +106,10 @@ export class HapClient extends EventEmitter {
       this.discoveryInProgress = false
       this.emit('discovery-terminated')
     }
+    if (this.startDiscoveryTimeout) {
+      clearTimeout(this.startDiscoveryTimeout)
+      this.startDiscoveryTimeout = undefined
+    }
 
     this.instances = []
     this.resetInstancePoolTimeout = setTimeout(() => {

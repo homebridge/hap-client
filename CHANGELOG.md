@@ -9,6 +9,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: guard against missing username in HAP advertisement
 - fix: skip splice when failing instance is no longer in pool
 - fix: tear down previous monitor before replacing in monitorCharacteristics
+- fix: clear stale startDiscoveryTimeout in resetInstancePool
 
 ### Homebridge Dependencies
 
