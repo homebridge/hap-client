@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 
+import axios from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HapClient } from './index.js'
@@ -159,5 +160,63 @@ describe('hapClient bonjour up handler - missing id', () => {
     })).resolves.toBeUndefined()
 
     expect((hapClient as any).instances.length).toBe(0)
+  })
+})
+
+describe('hapClient getAccessories - failing instance removal', () => {
+  let hapClient: HapClient
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    vi.restoreAllMocks()
+  })
+
+  it('should not remove a healthy instance when the failing instance is no longer in the pool', async () => {
+    // Reproduces a race where one caller removes the failing instance from
+    // the pool before the catch handler in another concurrent getAccessories
+    // call reaches the splice. With the bug, findIndex returns -1 and
+    // splice(-1, 1) deletes the LAST element of the array (a healthy instance).
+    const failingInstance = {
+      name: 'Failing Bridge',
+      username: 'AA:AA:AA:AA:AA:AA',
+      ipAddress: '1.1.1.1',
+      port: 80,
+      services: [],
+      connectionFailedCount: 5,
+      configurationNumber: 1,
+    }
+    const healthyInstance = {
+      name: 'Healthy Bridge',
+      username: 'BB:BB:BB:BB:BB:BB',
+      ipAddress: '2.2.2.2',
+      port: 80,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [failingInstance, healthyInstance]
+
+    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.includes('1.1.1.1')) {
+        // Simulate the racing concurrent removal of the failing instance
+        // before this catch handler reaches the splice.
+        const idx = (hapClient as any).instances.indexOf(failingInstance)
+        if (idx > -1) {
+          (hapClient as any).instances.splice(idx, 1)
+        }
+        throw new Error('connection refused')
+      }
+      return { data: { accessories: [] } } as any
+    })
+
+    await (hapClient as any).getAccessories()
+
+    // With the fix: findIndex returns -1, splice is skipped, healthy instance remains.
+    // With the bug: splice(-1, 1) would have removed healthyInstance.
+    expect((hapClient as any).instances).toContain(healthyInstance)
   })
 })
