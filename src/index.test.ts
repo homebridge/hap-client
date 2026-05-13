@@ -274,6 +274,15 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
     // so refreshInstances would have fired three times. With the fix it fires once.
     expect(refreshSpy).toHaveBeenCalledTimes(1)
   })
+
+  it('should not throw when discoveryInProgress is true but the browser was never assigned', () => {
+    // Simulates the state where startDiscovery set discoveryInProgress = true
+    // and bonjour.find() then threw before assigning this.browser.
+    (hapClient as any).discoveryInProgress = true
+    ;(hapClient as any).browser = undefined
+
+    expect(() => hapClient.resetInstancePool()).not.toThrow()
+  })
 })
 
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
