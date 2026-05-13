@@ -33,7 +33,11 @@ export class HapMonitor extends EventEmitter {
   }
 
   error(message: string) {
-    this.logger?.log(`[HapMonitor] ERROR: ${message}`)
+    if (typeof this.logger?.error === 'function') {
+      this.logger.error(`[HapMonitor] ${message}`)
+    } else {
+      this.logger?.log?.(`[HapMonitor] ERROR: ${message}`)
+    }
   }
 
   start() {
