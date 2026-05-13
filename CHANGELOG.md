@@ -22,6 +22,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: use byte length for Content-Length in evented HTTP client
 - fix: parse full body when Content-Length missing in httpParser
 - fix: surface refreshInstances browser.update errors
+- fix: parse multiple HTTP messages per TCP chunk in monitor
 
 ### Homebridge Dependencies
 
