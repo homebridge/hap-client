@@ -25,7 +25,7 @@ export interface Config {
 
 export class HapClient extends EventEmitter {
   private bonjour = new Bonjour()
-  private browser: Browser
+  private browser: InstanceType<typeof Browser> | undefined
   private discoveryInProgress = false
 
   private readonly defaultDiscoveryTimeout: number = 60000
@@ -133,7 +133,7 @@ export class HapClient extends EventEmitter {
     } else {
       try {
         this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`)
-        this.browser.update()
+        this.browser?.update()
       } catch (e) {
         this.debug(`[HapClient] Discovery :: Failed to re-broadcast discovery query: ${e?.message ?? e}`)
       }
@@ -149,24 +149,25 @@ export class HapClient extends EventEmitter {
 
     const timeout = discoveryTimeout ?? this.config.discoveryTimeout
 
-    this.browser = this.bonjour.find({
+    const browser = this.bonjour.find({
       type: 'hap',
     })
+    this.browser = browser
 
     // start matching services
-    this.browser.start()
+    browser.start()
     this.debug(`[HapClient] Discovery :: Started`)
 
     // stop discovery after 60 seconds
     this.startDiscoveryTimeout = setTimeout(() => {
-      this.browser.stop()
+      browser.stop()
       this.debug(`[HapClient] Discovery :: Ended`)
       this.discoveryInProgress = false
       this.emit('discovery-ended')
     }, timeout)
 
     // service found
-    this.browser.on('up', async (device: Service) => {
+    browser.on('up', async (device: InstanceType<typeof Service>) => {
       if (!device || !device.txt) {
         this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`)
         return

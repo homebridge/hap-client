@@ -27,10 +27,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: remove unused `tslint.json` file
 - fix: harden httpParser request-line regex against ReDoS
 - chore: lint whole repo via `"eslint ."` and apply autofix formatting
+- chore: dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.1.3`
+- `@homebridge/hap-nodejs` @ `v2.1.7`
 
 ## v4.0.4 (2026-05-06)
 
