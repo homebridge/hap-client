@@ -102,6 +102,10 @@ export class HapClient extends EventEmitter {
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser?.stop()
+      // Mirror stopDiscovery(): detach the old browser's listeners too.
+      // resetInstancePool() later creates a fresh browser via startDiscovery(),
+      // so without this the stale 'up' handler leaks across reset cycles.
+      this.browser?.removeAllListeners()
       this.debug(`[HapClient] Discovery :: Terminated`)
       this.discoveryInProgress = false
       this.emit('discovery-terminated')
@@ -252,6 +256,7 @@ export class HapClient extends EventEmitter {
   public stopDiscovery() {
     this.discoveryInProgress = false
     this.browser?.stop()
+    this.browser?.removeAllListeners()
     if (this.startDiscoveryTimeout) {
       clearTimeout(this.startDiscoveryTimeout)
       this.startDiscoveryTimeout = undefined
