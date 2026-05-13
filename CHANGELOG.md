@@ -12,6 +12,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: clear stale startDiscoveryTimeout in resetInstancePool
 - fix: clear pending resetInstancePoolTimeout before reassigning
 - fix: null-check browser before stopping in resetInstancePool
+- fix: handle null Name characteristic value when deriving serviceName
 
 ### Homebridge Dependencies
 
