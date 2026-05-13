@@ -518,9 +518,18 @@ export class HapClient extends EventEmitter {
         },
       })).data
 
-      const characteristic = service.serviceCharacteristics.find(x => x.iid === resp.characteristics[0].iid && x.aid === service.aid)
-      characteristic.value = resp.characteristics[0].value
-      service.values[characteristic.type] = resp.characteristics[0].value
+      const respCharacteristic = resp.characteristics?.[0]
+      if (!respCharacteristic) {
+        return undefined
+      }
+      const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === service.aid)
+      if (!characteristic) {
+        return undefined
+      }
+      if (respCharacteristic.value !== undefined) {
+        characteristic.value = respCharacteristic.value
+        service.values[characteristic.type] = respCharacteristic.value
+      }
 
       return characteristic
     } catch (e) {

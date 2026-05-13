@@ -450,6 +450,45 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
   })
+
+  it('getCharacteristic should not log an error on an empty characteristics response', async () => {
+    const service = buildService() as any
+
+    // Build a client with a logger spy so we can assert nothing was logged as error.
+    const errorSpy = vi.fn()
+    const localClient = new HapClient({
+      pin: '123-45-678',
+      logger: { error: errorSpy, warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { characteristics: [] },
+    } as any)
+
+    // Without the guard `resp.characteristics[0].iid` throws a TypeError that
+    // the try/catch swallows — but the misleading "Failed to get characteristic"
+    // error log is still emitted, polluting the user's logs.
+    const result = await localClient.getCharacteristic(service, 10)
+    expect(result).toBeUndefined()
+    expect(errorSpy).not.toHaveBeenCalled()
+    expect(service.serviceCharacteristics[0].value).toBe(true)
+
+    localClient.destroy()
+  })
+
+  it('getCharacteristic should preserve cached value when response entry has no value', async () => {
+    const service = buildService() as any
+
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { characteristics: [{ aid: 1, iid: 10, status: -70402 }] },
+    } as any)
+
+    await hapClient.getCharacteristic(service, 10)
+
+    expect(service.serviceCharacteristics[0].value).toBe(true)
+    expect(service.values.On).toBe(true)
+  })
 })
 
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
