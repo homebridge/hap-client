@@ -23,6 +23,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: parse full body when Content-Length missing in httpParser
 - fix: surface refreshInstances browser.update errors
 - fix: parse multiple HTTP messages per TCP chunk in monitor
+- chore: add and format eslint rules for test files
 
 ### Homebridge Dependencies
 
