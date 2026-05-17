@@ -25,6 +25,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: parse multiple HTTP messages per TCP chunk in monitor
 - chore: add and format eslint rules for test files
 - chore: remove unused `tslint.json` file
+- fix: harden httpParser request-line regex against ReDoS
 
 ### Homebridge Dependencies
 

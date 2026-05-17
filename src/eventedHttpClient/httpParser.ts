@@ -293,7 +293,10 @@ httpMessageParser._parseHeaders = function _parseHeaders(body) {
 };
 
 httpMessageParser._requestLineRegex = /(HTTP|EVENT)\/(1\.0|1\.1|2\.0)\s+(\d+)\s+([\w\s-_]+)/i;
-httpMessageParser._responseLineRegex = /(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|TRACE|CONNECT)\s+(.*)\s+HTTP\/(1\.0|1\.1|2\.0)/i;
+// The request-target (RFC 7230) contains no whitespace, so `\S+` is both
+// correct and avoids the super-linear backtracking that `(.*)` between two
+// `\s+` quantifiers would allow on hostile input.
+httpMessageParser._responseLineRegex = /(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|TRACE|CONNECT)\s+(\S+)\s+HTTP\/(1\.0|1\.1|2\.0)/i;
 // httpMessageParser._headerNewlineRegex = /^[\r\n]+/gim;
 httpMessageParser._headerNewlineRegex = /^[\r\n]+/gim;
 httpMessageParser._boundaryRegex = /(\n|\r\n)+--[\w-]+(\n|\r\n)+/g;
