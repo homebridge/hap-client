@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://homebridge.io"><img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round-stylized.png" height="140"></a>
+  <a href="https://homebridge.io"><img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round-stylized.png" alt="Homebridge Logo" height="140"></a>
 </p>
 <span align="center">
 
@@ -13,7 +13,7 @@
 
 A client for an insecure HAP-NodeJS instance. Provides a Typescript based interface based on the homekit accessory protocol, allowing the creation of clients able to connect to and control Homebridge devices.
 
-# API
+## API
 
 ```
 const { HapClient } = require('@homebridge/hap-client');
@@ -28,6 +28,7 @@ this.monitor = await this.hapClient.monitorCharacteristics(services?: ServiceTyp
 ```
 
 The discovery timeout can be configured by setting the `discoveryTimeout` property in the `config` object.
+
 ```
 const { HapClient } = require('@homebridge/hap-client');
 
@@ -42,6 +43,7 @@ this.hapClient = new HapClient({
 
 It's possible to control the discovery process manually, by settings the `autoStartDiscovery` property to `false` and then calling `this.hapClient.startDiscovery(discoveryTimeout?: number)` when ready. If no timeout is provided to the function, the `discoveryTimeout` property will be used from the `config` object, and if that is not provided either, the default discovery timeout (60 seconds) will be used.
 It's also possible to stop the discovery process manually by calling `stopDiscovery()`
+
 ```
 const { HapClient } = require('@homebridge/hap-client');
 
@@ -79,14 +81,13 @@ this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted
 this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed or restarted
 ```
 
-
-# Dependant Applications
+## Dependent Applications
 
 - homebridge-config-ui-x
 - homebridge-gsh
 - node-red-contrib-homebridge-automation
 
-- [NPM Dependants](https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents)
+- [NPM Dependents](https://www.npmjs.com/package/@homebridge/hap-client?activeTab=dependents)
 
 ## Credits
 
