@@ -26,6 +26,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: add and format eslint rules for test files
 - chore: remove unused `tslint.json` file
 - fix: harden httpParser request-line regex against ReDoS
+- chore: lint whole repo via `"eslint ."` and apply autofix formatting
 
 ### Homebridge Dependencies
 

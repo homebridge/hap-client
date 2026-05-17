@@ -3,21 +3,22 @@
  * https://github.com/NorthernMan54/Hap-Node-Client/blob/master/lib/eventedHttpClient.js
  */
 
-import { createConnection as netCreateConnection } from 'node:net';
+import { Buffer } from 'node:buffer'
+import { createConnection as netCreateConnection } from 'node:net'
 
-import httpMessageParser from './httpParser.js';
+import httpMessageParser from './httpParser.js'
 
-export const parseMessage = httpMessageParser;
+export const parseMessage = httpMessageParser
 
 export function createConnection(instance, pin: string, body) {
   const client = netCreateConnection({
     host: instance.ipAddress,
     port: instance.port,
-  });
+  })
 
   client.write(_buildMessage({
     method: 'PUT',
-    url: 'http://' + instance.ipAddress + ':' + instance.port + '/characteristics',
+    url: `http://${instance.ipAddress}:${instance.port}/characteristics`,
     maxAttempts: 1, // (default) try 5 times
     headers: {
       'Content-Type': 'Application/json',
@@ -25,35 +26,35 @@ export function createConnection(instance, pin: string, body) {
       'connection': 'keep-alive',
     },
     body: JSON.stringify(body),
-  }));
+  }))
 
-  return client;
+  return client
 }
 
 function _headersToString(headers) {
-  let response = '';
+  let response = ''
 
   for (const header of Object.keys(headers)) {
-    response = response + header + ': ' + headers[header] + '\r\n';
+    response = `${response + header}: ${headers[header]}\r\n`
   }
-  return (response);
+  return (response)
 }
 
 function _buildMessage(request) {
-  const context = new URL(request.url);
-  let message;
+  const context = new URL(request.url)
+  let message
 
-  message = request.method + ' ' + context.pathname;
+  message = `${request.method} ${context.pathname}`
   if (context.search) {
-    message = message + context.search;
+    message = message + context.search
   }
-  message = message + ' HTTP/1.1\r\nHost: ' + context.host + '\r\n' + _headersToString(request.headers);
+  message = `${message} HTTP/1.1\r\nHost: ${context.host}\r\n${_headersToString(request.headers)}`
   if (request.body) {
-    const contentLength = Buffer.byteLength(request.body, 'utf8');
-    message = message + 'Content-Length: ' + contentLength + '\r\n\r\n' + request.body + '\r\n\r\n';
+    const contentLength = Buffer.byteLength(request.body, 'utf8')
+    message = `${message}Content-Length: ${contentLength}\r\n\r\n${request.body}\r\n\r\n`
   } else {
-    message = message + '\r\n\r\n';
+    message = `${message}\r\n\r\n`
   }
   // debug("Message ->", message);
-  return (message);
+  return (message)
 }
