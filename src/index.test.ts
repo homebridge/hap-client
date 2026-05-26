@@ -13,7 +13,7 @@ let mockBrowserRemoveAllListeners: ReturnType<typeof vi.fn>
 let mockBrowserUpdate: ReturnType<typeof vi.fn>
 
 vi.mock('bonjour-service', () => ({
-  Bonjour: class MockBonjour {
+  default: class MockBonjour {
     stop = vi.fn()
     destroy = vi.fn()
     find = vi.fn().mockImplementation(() => {

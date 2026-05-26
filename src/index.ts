@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 
 import axios from 'axios'
-import { Bonjour, Browser, Service } from 'bonjour-service'
+import Bonjour from 'bonjour-service'
 import decamelize from 'decamelize'
 import { titleize } from 'inflection'
 
@@ -25,7 +25,7 @@ export interface Config {
 
 export class HapClient extends EventEmitter {
   private bonjour = new Bonjour()
-  private browser: InstanceType<typeof Browser> | undefined
+  private browser: InstanceType<typeof Bonjour.Browser> | undefined
   private discoveryInProgress = false
 
   private readonly defaultDiscoveryTimeout: number = 60000
@@ -167,7 +167,7 @@ export class HapClient extends EventEmitter {
     }, timeout)
 
     // service found
-    browser.on('up', async (device: InstanceType<typeof Service>) => {
+    browser.on('up', async (device: InstanceType<typeof Bonjour.Service>) => {
       if (!device || !device.txt) {
         this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`)
         return

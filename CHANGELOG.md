@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v4.0.6 (Pending Release)
+
+### Changed
+
+- fix: default-import `bonjour-service` for its CJS export shape
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.7`
+
 ## v4.0.5 (2026-05-26)
 
 ### Changed
