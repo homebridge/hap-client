@@ -2,9 +2,31 @@ import { writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { Categories, Characteristic, Service } from '@homebridge/hap-nodejs'
+import { Access, Categories, Characteristic, Formats, Perms, Service, Units } from '@homebridge/hap-nodejs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// @ts-expect-error - TS7016
+const { EveHomeKitTypes } = await import('homebridge-lib/EveHomeKitTypes')
+// @ts-expect-error - TS7016
+const { MyHomeKitTypes } = await import('homebridge-lib/MyHomeKitTypes')
+
+const homebridge = {
+  hap: {
+    Access,
+    Categories,
+    Characteristic,
+    Formats,
+    Perms,
+    Service,
+    Units,
+  },
+}
+
+const customTypes = [
+  new EveHomeKitTypes(homebridge),
+  new MyHomeKitTypes(homebridge),
+]
 
 /** Generate Service Types */
 
@@ -12,16 +34,23 @@ let Services = [
   'export const Services = {',
 ] as any
 
-const uuidMap = new Map()
+const serviceUUIDs = new Set()
+const serviceNames = new Set()
+const serviceEntries = [
+  ...Object.entries(Service),
+  ...customTypes.flatMap(customType => Object.entries(customType.Services)),
+]
 
-for (const [name, value] of Object.entries(Service)) {
+for (const [name, value] of serviceEntries) {
   if (value.UUID) {
-    if (!uuidMap.has(value.UUID)) {
-      // If the UUID does not exist, add a new entry
+    if (!serviceUUIDs.has(value.UUID)) {
       Services.push(`  '${value.UUID}': '${name}',`)
-      uuidMap.set(value.UUID, Services.length - 1)
+      serviceUUIDs.add(value.UUID)
     }
-    Services.push(`  '${name}': '${value.UUID}',`)
+    if (!serviceNames.has(name)) {
+      Services.push(`  '${name}': '${value.UUID}',`)
+      serviceNames.add(name)
+    }
   }
 }
 
@@ -34,10 +63,24 @@ let Characteristics = [
   'export const Characteristics = {',
 ] as any
 
-for (const [name, value] of Object.entries(Characteristic)) {
+const characteristicEntries = [
+  ...Object.entries(Characteristic),
+  ...customTypes.flatMap(customType => Object.entries(customType.Characteristics)),
+]
+
+const characteristicUUIDs = new Set()
+const characteristicNames = new Set()
+
+for (const [name, value] of characteristicEntries) {
   if (value.UUID) {
-    Characteristics.push(`  '${value.UUID}': '${name}',`)
-    Characteristics.push(`  '${name}': '${value.UUID}',`)
+    if (!characteristicUUIDs.has(value.UUID)) {
+      Characteristics.push(`  '${value.UUID}': '${name}',`)
+      characteristicUUIDs.add(value.UUID)
+    }
+    if (!characteristicNames.has(name)) {
+      Characteristics.push(`  '${name}': '${value.UUID}',`)
+      characteristicNames.add(name)
+    }
   }
 }
 

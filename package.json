@@ -61,6 +61,7 @@
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.7",
     "eslint-plugin-format": "^2.0.1",
+    "homebridge-lib": "^8.1.0",
     "rimraf": "^6.1.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
