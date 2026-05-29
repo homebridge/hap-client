@@ -72,3 +72,4 @@ yarn.lock
 scripts/
 eslint.config.mjs
 vitest.config.ts
+.github/
