@@ -7,7 +7,6 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - feat: include `homebridge-lib` custom Services and Characteristics in generated HAP type mappings
-- chore: update deprecation script from homebridge repo
 - chore: dependency updates
 
 ### Homebridge Dependencies
