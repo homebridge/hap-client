@@ -2,6 +2,17 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.0.0 (2026-05-27)
+
+### Changed
+
+- feat: include `homebridge-lib` custom Services and Characteristics in generated HAP type mappings
+- chore: dependency updates
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.7`
+
 ## v4.0.6 (2026-05-26)
 
 ### Changed
