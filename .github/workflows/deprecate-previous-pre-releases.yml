@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deprecate Past Pre-Releases
-        uses: homebridge/deprecate-past-pre-releases@latest
+        uses: homebridge/deprecate-past-pre-releases@v1
         with:
           execute: ${{ inputs.execute }}
           npm-token: ${{ secrets.NPM_DEPRECATION_TOKEN }}
