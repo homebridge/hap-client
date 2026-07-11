@@ -32,7 +32,6 @@ export default antfu(
       'style/quote-props': ['error', 'consistent-as-needed'],
       'test/no-only-tests': 'error',
       'ts/consistent-type-imports': 'off',
-      'unicorn/no-useless-spread': 'error',
       'unused-imports/no-unused-vars': ['error', { caughtErrors: 'none' }],
     },
     typescript: true,
