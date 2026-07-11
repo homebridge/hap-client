@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - feat: add `SelectedSessionKeepaliveConfigurationList` and `SupportedSessionKeepaliveConfigurationList` characteristics
+- chore: remove `unicorn/no-useless-spread` eslint rule
 
 ### Homebridge Dependencies
 
