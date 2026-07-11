@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.0.1 (Pending Release)
+
+### Changed
+
+- feat: add `SelectedSessionKeepaliveConfigurationList` and `SupportedSessionKeepaliveConfigurationList` characteristics
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.7`
+
 ## v5.0.0 (2026-05-27)
 
 ### Changed
