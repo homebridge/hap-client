@@ -8,10 +8,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - feat: add `SelectedSessionKeepaliveConfigurationList` and `SupportedSessionKeepaliveConfigurationList` characteristics
 - chore: remove `unicorn/no-useless-spread` eslint rule
+- chore: dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.1.7`
+- `@homebridge/hap-nodejs` @ `v2.1.8`
 
 ## v5.0.0 (2026-05-27)
 
