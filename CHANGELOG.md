@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - fix: resolve the hostname when bonjour-service reports no addresses, so child bridges sharing a hostname are no longer dropped (#40)
+- chore(deps): dependency updates
 
 ## v5.1.0 (2026-07-11)
 
