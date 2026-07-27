@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
 
 import axios from 'axios'
@@ -7,6 +8,7 @@ import { Characteristics, Services } from './hap-types.js'
 import { HapClient } from './index.js'
 
 vi.mock('axios')
+vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
 
 let mockBrowserOn: ReturnType<typeof vi.fn>
 let mockBrowserRemoveAllListeners: ReturnType<typeof vi.fn>
@@ -167,6 +169,88 @@ describe('hapClient bonjour up handler - missing id', () => {
     })).resolves.toBeUndefined()
 
     expect((hapClient as any).instances.length).toBe(0)
+  })
+})
+
+describe('hapClient bonjour up handler - empty addresses (#40)', () => {
+  let hapClient: HapClient
+  let upHandler: (device: any) => Promise<void>
+
+  beforeEach(() => {
+    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient.startDiscovery()
+
+    const upCall = mockBrowserOn.mock.calls.find(([event]) => event === 'up')
+    upHandler = upCall?.[1]
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    // Registering an instance exercises checkInstanceConnection, which issues an
+    // axios.put. Clear the shared mocks so that call history does not leak into
+    // later tests that assert on it.
+    vi.mocked(lookup).mockReset()
+    vi.mocked(axios.get).mockClear()
+    vi.mocked(axios.put).mockClear()
+  })
+
+  it('resolves the hostname when bonjour-service supplies no addresses', async () => {
+    // When several bridges share a hostname, the mDNS responder suppresses the
+    // repeated A records, so bonjour-service hands us an empty addresses array.
+    // Without the hostname fallback the bridge is dropped without being probed.
+    vi.mocked(lookup).mockResolvedValue([{ address: '192.168.1.50', family: 4 }] as any)
+    vi.mocked(axios.get).mockResolvedValue({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'Shared Host Bridge' },
+      port: 51826,
+      host: 'pi4b.local',
+      addresses: [],
+    })
+
+    expect(vi.mocked(lookup)).toHaveBeenCalledWith('pi4b.local', { all: true, family: 4 })
+
+    const instances = (hapClient as any).instances
+    expect(instances.length).toBe(1)
+    expect(instances[0].username).toBe('AA:BB:CC:DD:EE:FF')
+    expect(instances[0].ipAddress).toBe('192.168.1.50')
+  })
+
+  it('does not resolve the hostname when a usable address is already supplied', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': 'BB:CC:DD:EE:FF:AA', 'md': 'Normal Bridge' },
+      port: 51827,
+      host: 'pi4b.local',
+      addresses: ['127.0.0.1'],
+    })
+
+    expect(vi.mocked(lookup)).not.toHaveBeenCalled()
+
+    const instances = (hapClient as any).instances
+    expect(instances.length).toBe(1)
+    expect(instances[0].ipAddress).toBe('127.0.0.1')
+  })
+
+  it('does not throw when the hostname cannot be resolved', async () => {
+    vi.mocked(lookup).mockRejectedValue(new Error('ENOTFOUND'))
+
+    await expect(upHandler({
+      txt: { 'c#': 1, 'id': 'CC:DD:EE:FF:AA:BB', 'md': 'Unresolvable Bridge' },
+      port: 51828,
+      host: 'does-not-exist.invalid',
+      addresses: [],
+    })).resolves.toBeUndefined()
+
+    expect((hapClient as any).instances.length).toBe(0)
+  })
+
+  it('does not throw when addresses is missing entirely', async () => {
+    await expect(upHandler({
+      txt: { 'c#': 1, 'id': 'DD:EE:FF:AA:BB:CC', 'md': 'No Addresses Bridge' },
+      port: 51829,
+    })).resolves.toBeUndefined()
   })
 })
 

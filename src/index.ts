@@ -1,5 +1,6 @@
 /* global NodeJS */
 import { createHash } from 'node:crypto'
+import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
 
 import axios from 'axios'
@@ -225,7 +226,27 @@ export class HapClient extends EventEmitter {
         return
       }
 
-      for (const ip of device.addresses) {
+      // bonjour-service only collects A/AAAA records from the packet a service
+      // arrived in. When several bridges share a hostname the mDNS responder
+      // suppresses the repeated address records in later packets, so those
+      // services reach us with no addresses at all and would be dropped without
+      // ever being probed (#40). Resolving the hostname recovers them, since the
+      // system resolver caches records across packets correctly.
+      let addresses: string[] = Array.isArray(device.addresses) ? device.addresses : []
+      if (!addresses.some(ip => IPV4_REGEX.test(ip)) && device.host) {
+        try {
+          const resolved = await lookup(device.host, { all: true, family: 4 })
+          const resolvedAddresses = resolved.map(entry => entry.address)
+          this.debug(`[HapClient] Discovery :: No usable address for ${instance.username}, `
+            + `resolved ${device.host} to ${resolvedAddresses.join(', ') || 'nothing'}`)
+          addresses = [...addresses, ...resolvedAddresses]
+        } catch (e) {
+          this.debug(`[HapClient] Discovery :: Could not resolve host ${device.host} `
+            + `for ${instance.username}: ${e.message}`)
+        }
+      }
+
+      for (const ip of addresses) {
         if (IPV4_REGEX.test(ip)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`)

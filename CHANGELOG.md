@@ -2,6 +2,12 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.1.1 (Pending Release)
+
+### Changed
+
+- fix: resolve the hostname when bonjour-service reports no addresses, so child bridges sharing a hostname are no longer dropped (#40)
+
 ## v5.1.0 (2026-07-11)
 
 ### Changed
