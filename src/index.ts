@@ -256,8 +256,15 @@ export class HapClient extends EventEmitter {
             if (test.accessories) {
               this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`)
               instance.ipAddress = ip
+              // only a usable address ends the search. A 200 with no
+              // `accessories` (something else on that port, or a bridge still
+              // starting) used to break out too, leaving ipAddress null and the
+              // instance unregistered while a working sibling address went
+              // untried - the multi-homed case #40 exists for.
+              break
             }
-            break
+            this.debug(`[HapClient] Discovery :: ${instance.username} answered on http://${ip}:${device.port}/accessories `
+              + `without an accessories list, trying any remaining address`)
           } catch (e) {
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} via http://${ip}:${device.port}/accessories`)
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} with error: ${e.message}`)

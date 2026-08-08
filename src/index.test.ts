@@ -252,6 +252,29 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
       port: 51829,
     })).resolves.toBeUndefined()
   })
+
+  it('keeps probing the remaining addresses when one answers without an accessories list', async () => {
+    // A 200 that carries no `accessories` is not a usable bridge - something
+    // else on that port, or one still starting up. Breaking out of the probe
+    // loop there left ipAddress null and the instance unregistered while a
+    // working sibling address was never tried.
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({ data: {} } as any)
+      .mockResolvedValueOnce({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': 'EE:FF:AA:BB:CC:DD', 'md': 'Multi Homed Bridge' },
+      port: 51830,
+      host: 'pi4b.local',
+      addresses: ['192.168.1.60', '192.168.1.61'],
+    })
+
+    expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
+
+    const instances = (hapClient as any).instances
+    expect(instances.length).toBe(1)
+    expect(instances[0].ipAddress).toBe('192.168.1.61')
+  })
 })
 
 describe('hapClient getAccessories - failing instance removal', () => {
