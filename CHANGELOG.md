@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.1.2 (Pending Release)
+
+### Changed
+
+- fix: keep probing the remaining addresses when one answers without an accessories list
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.9`
+
 ## v5.1.1 (2026-07-27)
 
 ### Changed
@@ -10,6 +20,10 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: resolve the hostname when bonjour-service reports no addresses, so child bridges sharing a hostname are no longer dropped (#40)
 - chore(deps): dependency updates
 - docs(changelog): list every unreleased commit in the pending section
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.1.9`
 
 ## v5.1.0 (2026-07-11)
 
