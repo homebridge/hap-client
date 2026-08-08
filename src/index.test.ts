@@ -333,6 +333,47 @@ describe('hapClient getAccessories - failing instance removal', () => {
     // With the bug: splice(-1, 1) would have removed healthyInstance.
     expect((hapClient as any).instances).toContain(healthyInstance)
   })
+
+  it('still collects from the instance following one that gets removed', async () => {
+    // The loop used to iterate this.instances directly while the catch handler
+    // spliced from it. Removing the current element shifts the next one into
+    // its index, and the for..of iterator moves past it - so the bridge sitting
+    // immediately after an evicted one contributed no accessories to this call.
+    const failing = {
+      name: 'Failing Bridge',
+      username: 'AA:AA:AA:AA:AA:AA',
+      ipAddress: '1.1.1.1',
+      port: 80,
+      services: [],
+      connectionFailedCount: 5, // one more failure evicts it
+      configurationNumber: 1,
+    }
+    const nextInLine = {
+      name: 'Next Bridge',
+      username: 'BB:BB:BB:BB:BB:BB',
+      ipAddress: '2.2.2.2',
+      port: 80,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [failing, nextInLine]
+
+    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.includes('1.1.1.1')) {
+        throw new Error('connection refused')
+      }
+      return { data: { accessories: [{ aid: 1, services: [] }] } } as any
+    })
+
+    const accessories = await (hapClient as any).getAccessories()
+
+    expect((hapClient as any).instances).not.toContain(failing)
+    expect((hapClient as any).instances).toContain(nextInLine)
+    // the surviving bridge was actually visited
+    expect(accessories.length).toBe(1)
+    expect(accessories[0].instance).toBe(nextInLine)
+  })
 })
 
 describe('hapClient resetInstancePool - stale discovery timeout', () => {
