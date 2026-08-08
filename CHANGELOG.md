@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - fix: keep probing the remaining addresses when one answers without an accessories list
+- fix: stop skipping the instance after one removed from the pool mid-refresh
 
 ### Homebridge Dependencies
 

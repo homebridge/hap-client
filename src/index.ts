@@ -321,7 +321,11 @@ export class HapClient extends EventEmitter {
     }
 
     const accessories = []
-    for (const instance of this.instances) {
+    // Iterate a snapshot: the catch below can splice the failing instance out of
+    // this.instances, which shifts the next one into its index and makes the
+    // for..of iterator step over it - so the bridge immediately after an evicted
+    // one silently contributed nothing to this call.
+    for (const instance of [...this.instances]) {
       try {
         const resp: HapAccessoriesRespType = (await axios.get(`http://${instance.ipAddress}:${instance.port}/accessories`)).data
         instance.connectionFailedCount = 0
