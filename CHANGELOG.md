@@ -8,10 +8,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - fix: keep probing the remaining addresses when one answers without an accessories list
 - fix: stop skipping the instance after one removed from the pool mid-refresh
+- chore(deps): dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.1.9`
+- `@homebridge/hap-nodejs` @ `v2.2.1`
 
 ## v5.1.1 (2026-07-27)
 
