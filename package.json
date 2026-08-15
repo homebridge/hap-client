@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.3.0",
-    "@homebridge/hap-nodejs": "2.2.1",
+    "@homebridge/hap-nodejs": "^2.2.2",
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint-plugin-format": "^2.0.1",
