@@ -2,6 +2,12 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.2.1 (2026-08-16)
+
+### Changed
+
+- fix: only mention the pin for homebridge bridges, not every homekit device on the network
+
 ## v5.2.0 (2026-08-16)
 
 ### Changed

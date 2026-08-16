@@ -15,6 +15,18 @@ import { toLongFormUUID } from './uuid.js'
 
 export * from './interfaces.js'
 
+/**
+ * Whether a discovered HAP device is one of Homebridge's own bridges.
+ *
+ * Homebridge advertises `md=homebridge` in its mDNS txt record (kept here as
+ * `instance.name`); a Hue bridge says `BSB002`, a HomePod says `HomePod`, and
+ * so on. Used to keep pin advice pointed only at instances the user can
+ * actually fix.
+ */
+function isHomebridgeInstance(instance: { name?: string }): boolean {
+  return instance?.name?.toLowerCase() === 'homebridge'
+}
+
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
 export interface Config {
@@ -344,7 +356,15 @@ export class HapClient extends EventEmitter {
       // cause the control paths below already name. Saying so is what stops it
       // reading as a discovery or network fault: the bridge answered, it just
       // refused this pin.
-      if (e.response?.status === 470 || e.response?.status === 401) {
+      //
+      // ⚠️ Only for Homebridge's own bridges. Discovery browses `_hap._tcp`, so
+      // it probes EVERY HomeKit accessory on the network - a Hue bridge, a
+      // HomePod, another HAP server such as Scrypted sharing the host. Those
+      // refuse the pin because they are paired to Apple Home and are nothing to
+      // do with Homebridge, so telling their owner to "set the Homebridge pin"
+      // is advice they cannot act on. The mDNS `md` record, kept as
+      // `instance.name`, is what separates the two.
+      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance)) {
         this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
           + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
       }

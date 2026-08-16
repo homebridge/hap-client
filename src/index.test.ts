@@ -744,8 +744,9 @@ describe('hapClient monitorCharacteristics - replacing existing monitor', () => 
  * silently vanish from the UI (homebridge-config-ui-x#2936).
  */
 describe('hapClient per-bridge pins (#2936)', () => {
-  const instance = (username: string) => ({
+  const instance = (username: string, name = 'homebridge') => ({
     username,
+    name,
     ipAddress: '10.0.0.1',
     port: 51826,
   })
@@ -826,5 +827,27 @@ describe('hapClient per-bridge pins (#2936)', () => {
 
     expect(ok).toBe(false)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused the pin'))
+  })
+
+  // Discovery browses `_hap._tcp`, so it probes every HomeKit accessory on the
+  // network - a Hue bridge, a HomePod, another HAP server such as Scrypted on
+  // the same host. Those refuse the pin because they belong to Apple Home, and
+  // telling their owner to set "the Homebridge pin" is advice they cannot act on.
+  it('stays quiet when the device refusing the pin is not a homebridge bridge', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
+    )
+
+    // md=Scrypted, as a non-Homebridge HAP server advertises
+    const ok = await (client as any).checkInstanceConnection(instance('32:46:85:f8:7b:a7', 'Scrypted'))
+
+    expect(ok).toBe(false)
+    expect(warn).not.toHaveBeenCalled()
   })
 })
