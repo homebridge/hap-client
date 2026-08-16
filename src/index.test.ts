@@ -735,3 +735,96 @@ describe('hapClient monitorCharacteristics - replacing existing monitor', () => 
     expect(previousFinish).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * A bridge in insecure mode still checks the `Authorization` header against ITS
+ * OWN pincode. Sending the main bridge's pin to every instance therefore works
+ * only while every child bridge inherits it - a child with its own
+ * `_bridge.pin` answers 470, gets dropped from discovery, and its accessories
+ * silently vanish from the UI (homebridge-config-ui-x#2936).
+ */
+describe('hapClient per-bridge pins (#2936)', () => {
+  const instance = (username: string) => ({
+    username,
+    ipAddress: '10.0.0.1',
+    port: 51826,
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('uses a bridge\'s own pin when one was supplied', () => {
+    const client = new HapClient({
+      pin: '123-45-678',
+      pins: { '0E:AA:BB:CC:DD:EE': '999-88-777' },
+      config: { autoStartDiscovery: false },
+    })
+
+    expect((client as any).pinFor(instance('0E:AA:BB:CC:DD:EE'))).toBe('999-88-777')
+  })
+
+  it('falls back to the main pin for a bridge that has none of its own', () => {
+    const client = new HapClient({
+      pin: '123-45-678',
+      pins: { '0E:AA:BB:CC:DD:EE': '999-88-777' },
+      config: { autoStartDiscovery: false },
+    })
+
+    expect((client as any).pinFor(instance('0E:11:22:33:44:55'))).toBe('123-45-678')
+  })
+
+  // Usernames are MACs and reach us from mDNS txt records, so do not assume the
+  // case matches whatever the config file used.
+  it('matches the username regardless of case', () => {
+    const client = new HapClient({
+      pin: '123-45-678',
+      pins: { '0e:aa:bb:cc:dd:ee': '999-88-777' },
+      config: { autoStartDiscovery: false },
+    })
+
+    expect((client as any).pinFor(instance('0E:AA:BB:CC:DD:EE'))).toBe('999-88-777')
+  })
+
+  it('still works when no per-bridge pins are given at all', () => {
+    const client = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+
+    expect((client as any).pinFor(instance('0E:AA:BB:CC:DD:EE'))).toBe('123-45-678')
+  })
+
+  it('sends the bridge\'s own pin when probing it', async () => {
+    const client = new HapClient({
+      pin: '123-45-678',
+      pins: { '0E:AA:BB:CC:DD:EE': '999-88-777' },
+      config: { autoStartDiscovery: false },
+    })
+    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+
+    expect(axios.put).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      expect.objectContaining({ headers: { Authorization: '999-88-777' } }),
+    )
+  })
+
+  // Without this the log said only "returned an error", which reads as a
+  // network or discovery fault - the bridge answered, it just refused the pin.
+  it('names the pin as the cause when a bridge answers 470', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
+    )
+
+    const ok = await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+
+    expect(ok).toBe(false)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused the pin'))
+  })
+})

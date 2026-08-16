@@ -34,6 +34,7 @@ export class HapClient extends EventEmitter {
 
   private readonly logger: any
   private readonly pin: string
+  private readonly pins: Record<string, string> = {}
   private readonly debugEnabled: boolean = false
   private config: Config
 
@@ -48,11 +49,26 @@ export class HapClient extends EventEmitter {
 
   constructor(opts: {
     pin: string
+    /**
+     * Per-bridge pins, keyed by the bridge's username (MAC).
+     *
+     * ⚠️ In insecure mode a bridge still checks the `Authorization` header
+     * against ITS OWN pincode, so one pin for every instance only works while
+     * every child bridge inherits the main one. A child bridge with its own
+     * `_bridge.pin` answers 470 and is dropped from discovery, taking its
+     * accessories out of the UI (homebridge-config-ui-x#2936).
+     *
+     * Anything not listed here falls back to `pin`.
+     */
+    pins?: Record<string, string>
     logger?: any
     config: any
   }) {
     super()
     this.pin = opts.pin
+    for (const [username, pin] of Object.entries(opts.pins ?? {})) {
+      this.pins[HapClient.normaliseUsername(username)] = pin
+    }
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
     this.config = {
@@ -299,18 +315,39 @@ export class HapClient extends EventEmitter {
   /**
    * This checks the instance pin matches
    */
+  /** Usernames are MACs; compare them without caring about case. */
+  private static normaliseUsername(username: string): string {
+    return username.toUpperCase()
+  }
+
+  /**
+   * The pin to authenticate with for a given bridge - its own if one was
+   * supplied, otherwise the main bridge's.
+   */
+  private pinFor(instance: { username?: string }): string {
+    return (instance?.username && this.pins[HapClient.normaliseUsername(instance.username)]) || this.pin
+  }
+
   private async checkInstanceConnection(instance: HapInstance): Promise<boolean> {
     try {
       await axios.put(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
         characteristics: [{ aid: -1, iid: -1 }],
       }, {
         headers: {
-          Authorization: this.pin,
+          Authorization: this.pinFor(instance),
         },
       })
       return true
     } catch (e) {
       this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`)
+      // A 470 here is a pin mismatch, not an unreachable bridge - the same
+      // cause the control paths below already name. Saying so is what stops it
+      // reading as a discovery or network fault: the bridge answered, it just
+      // refused this pin.
+      if (e.response?.status === 470 || e.response?.status === 401) {
+        this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
+          + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
+      }
       return false
     }
   }
@@ -360,7 +397,7 @@ export class HapClient extends EventEmitter {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices()
     this.hapMonitor?.finish()
-    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), this.pin, services)
+    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), instance => this.pinFor(instance), services)
     return this.hapMonitor
   }
 
@@ -599,7 +636,7 @@ export class HapClient extends EventEmitter {
         ],
       }, {
         headers: {
-          Authorization: this.pin,
+          Authorization: this.pinFor(service.instance),
         },
       })
       return this.getCharacteristic(service, iid)
@@ -608,9 +645,9 @@ export class HapClient extends EventEmitter {
         + `Failed to set value for ${service.serviceName}.`)
       if (e.response && (e.response?.status === 470 || e.response?.status === 401)) {
         this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
+          + `Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)
         throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
-          + `is set to ${this.pin}.`)
+          + `is set to ${this.pinFor(service.instance)}.`)
       } else {
         this.error(e.message)
         throw new Error(`Failed to control accessory: ${e.message}`)
@@ -646,7 +683,7 @@ export class HapClient extends EventEmitter {
         characteristics,
       }, {
         headers: {
-          Authorization: this.pin,
+          Authorization: this.pinFor(service.instance),
         },
       })
       return this.refreshServiceCharacteristics(service)
@@ -655,9 +692,9 @@ export class HapClient extends EventEmitter {
         + `Failed to set value for ${service.serviceName}.`)
       if (e.response && (e.response?.status === 470 || e.response?.status === 401)) {
         this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
+          + `Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)
         throw new Error(`Failed to control accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
-          + `is set to ${this.pin}.`)
+          + `is set to ${this.pinFor(service.instance)}.`)
       } else {
         this.error(e.message)
         throw new Error(`Failed to control accessory: ${e.message}`)
@@ -673,7 +710,7 @@ export class HapClient extends EventEmitter {
       }, {
         responseType: 'arraybuffer',
         headers: {
-          Authorization: this.pin,
+          Authorization: this.pinFor(service.instance),
         },
       })
       if (resp.status === 200) {
@@ -687,9 +724,9 @@ export class HapClient extends EventEmitter {
         + `Failed to request resource from accessory ${service.serviceName}.`)
       if (e.response && (e.response?.status === 470 || e.response?.status === 401)) {
         this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Make sure Homebridge pin for this instance is set to ${this.pin}.`)
+          + `Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)
         throw new Error(`Failed to request resource from accessory. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
-          + `is set to ${this.pin}.`)
+          + `is set to ${this.pinFor(service.instance)}.`)
       } else {
         this.error(e.message)
         throw new Error(`Failed to request resource: ${e.message}`)

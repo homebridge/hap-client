@@ -52,17 +52,27 @@ export function findMessageBoundary(buffer: Buffer): number {
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
  */
 export class HapMonitor extends EventEmitter {
-  private readonly pin
+  /**
+   * Resolves the pin to use for a given bridge. A plain string is still
+   * accepted and means "this pin for every instance", which is what the
+   * monitor assumed before child bridges could carry their own pin.
+   */
+  private readonly pinFor: (instance: { username?: string }) => string
   private readonly evInstances: HapEvInstance[]
   private readonly services: ServiceType[]
   private logger: any
   private readonly debug: (arg0: string) => void
 
-  constructor(logger: any, debug: any, pin: string, services: ServiceType[]) {
+  constructor(
+    logger: any,
+    debug: any,
+    pin: string | ((instance: { username?: string }) => string),
+    services: ServiceType[],
+  ) {
     super()
     this.logger = logger
     this.debug = debug
-    this.pin = pin
+    this.pinFor = typeof pin === 'function' ? pin : () => pin
     this.services = services
     this.evInstances = [] as HapEvInstance[]
 
@@ -94,7 +104,7 @@ export class HapMonitor extends EventEmitter {
   connectInstance(instance: HapEvInstance) {
     try {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`)
-      instance.socket = createConnection(instance, this.pin, { characteristics: instance.evCharacteristics })
+      instance.socket = createConnection(instance, this.pinFor(instance), { characteristics: instance.evCharacteristics })
       instance.monitoring = true
       instance.recvBuffer = Buffer.alloc(0)
 
@@ -203,7 +213,7 @@ export class HapMonitor extends EventEmitter {
 
     if (message.statusCode === 401) {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
-        + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pin}.`)
+        + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
     }
 
     if (message.protocol === 'EVENT') {

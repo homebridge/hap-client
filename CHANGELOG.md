@@ -2,6 +2,12 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.1.4 (Pending Release)
+
+### Changed
+
+- feat: accept a pin per bridge, so a child bridge with its own pin is not dropped
+
 ## v5.1.3 (2026-08-15)
 
 ### Changed
