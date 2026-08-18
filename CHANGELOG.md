@@ -7,10 +7,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - fix: name a refused pin once per bridge, not on every discovery cycle
+- chore(deps): dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.2.3-beta`
+- `@homebridge/hap-nodejs` @ `v2.2.3`
 
 ## v5.2.1 (2026-08-16)
 
@@ -18,11 +19,19 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - fix: only mention the pin for homebridge bridges, not every homekit device on the network
 
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.2.2`
+
 ## v5.2.0 (2026-08-16)
 
 ### Changed
 
 - feat: accept a pin per bridge, so a child bridge with its own pin is not dropped
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.2.2`
 
 ## v5.1.3 (2026-08-15)
 
