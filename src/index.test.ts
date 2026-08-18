@@ -829,6 +829,52 @@ describe('hapClient per-bridge pins (#2936)', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused the pin'))
   })
 
+  // Discovery re-probes on a timer, so an unchanged mismatch used to reprint the
+  // same warning for as long as it lasted. A user running a second Homebridge
+  // install cannot fix the other one's pin, so for them it never stopped (#2979).
+  it('names the pin once per instance, not once per discovery cycle', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
+    vi.mocked(axios.put).mockRejectedValue(refused())
+
+    // the same instance object, the way discovery keeps and re-probes it
+    const target = instance('0E:AA:BB:CC:DD:EE')
+    await (client as any).checkInstanceConnection(target)
+    await (client as any).checkInstanceConnection(target)
+    await (client as any).checkInstanceConnection(target)
+
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  // Silencing it permanently would be the opposite mistake: a pin corrected and
+  // then broken again is a real fault the user still needs telling about.
+  it('names the pin again after a working connection in between', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
+    const target = instance('0E:AA:BB:CC:DD:EE')
+
+    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    await (client as any).checkInstanceConnection(target)
+
+    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+    await (client as any).checkInstanceConnection(target)
+
+    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    await (client as any).checkInstanceConnection(target)
+
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
+
   // Discovery browses `_hap._tcp`, so it probes every HomeKit accessory on the
   // network - a Hue bridge, a HomePod, another HAP server such as Scrypted on
   // the same host. Those refuse the pin because they belong to Apple Home, and
