@@ -349,6 +349,9 @@ export class HapClient extends EventEmitter {
           Authorization: this.pinFor(instance),
         },
       })
+      // A working connection clears the pin complaint, so a mismatch that comes
+      // back later is reported again rather than staying silent.
+      instance.pinRefusalLogged = false
       return true
     } catch (e) {
       this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`)
@@ -364,7 +367,12 @@ export class HapClient extends EventEmitter {
       // do with Homebridge, so telling their owner to "set the Homebridge pin"
       // is advice they cannot act on. The mDNS `md` record, kept as
       // `instance.name`, is what separates the two.
-      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance)) {
+      // Once per instance, not once per discovery cycle. The cause does not
+      // change between probes, and a second Homebridge install on the same
+      // network refuses this pin forever - its pin belongs to whoever runs it,
+      // not to the user reading this log (#2979).
+      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !instance.pinRefusalLogged) {
+        instance.pinRefusalLogged = true
         this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
           + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
       }
