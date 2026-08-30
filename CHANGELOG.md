@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - feat: hand-maintained registry of plugin-defined custom types
+- chore: dependency updates
 
 ### Homebridge Dependencies
 
