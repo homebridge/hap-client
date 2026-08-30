@@ -1,10 +1,44 @@
+import type { PluginType } from './plugin-types.ts'
+
 import { writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { Access, Categories, Characteristic, Formats, Perms, Service, Units } from '@homebridge/hap-nodejs'
 
+import { PluginCharacteristics, PluginServices } from './plugin-types.ts'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+const UUID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/
+
+/**
+ * Merges the hand-maintained plugin types into the generated maps, after the
+ * hap-nodejs and homebridge-lib types have claimed their names and UUIDs.
+ *
+ * A collision is an error rather than a silent skip: half-registering an entry
+ * (one direction emitted, the other already taken) would look like it worked
+ * while behaving differently to every other type. The usual cause is a plugin
+ * type that has since been adopted upstream, and the fix is to delete the entry.
+ */
+function mergePluginTypes(lines: string[], uuids: Set<unknown>, names: Set<unknown>, entries: PluginType[], kind: string) {
+  for (const { name, uuid: rawUuid, definedBy } of entries) {
+    const uuid = rawUuid.toUpperCase()
+    if (!UUID_REGEX.test(uuid)) {
+      throw new Error(`Plugin ${kind} '${name}' (${definedBy}) has an invalid UUID: '${rawUuid}'`)
+    }
+    if (uuids.has(uuid) || names.has(name)) {
+      throw new Error(
+        `Plugin ${kind} '${name}' (${definedBy}) collides with an existing ${kind} name or UUID - `
+        + `if the type is now provided by hap-nodejs or homebridge-lib, remove it from scripts/plugin-types.ts`,
+      )
+    }
+    lines.push(`  '${uuid}': '${name}',`)
+    lines.push(`  '${name}': '${uuid}',`)
+    uuids.add(uuid)
+    names.add(name)
+  }
+}
 
 // @ts-expect-error - TS7016
 const { EveHomeKitTypes } = await import('homebridge-lib/EveHomeKitTypes')
@@ -54,6 +88,8 @@ for (const [name, value] of serviceEntries) {
   }
 }
 
+mergePluginTypes(Services, serviceUUIDs, serviceNames, PluginServices, 'service')
+
 Services.push(`}\n\n`)
 Services = Services.join('\n')
 
@@ -83,6 +119,8 @@ for (const [name, value] of characteristicEntries) {
     }
   }
 }
+
+mergePluginTypes(Characteristics, characteristicUUIDs, characteristicNames, PluginCharacteristics, 'characteristic')
 
 Characteristics.push(`}\n\n`)
 Characteristics = Characteristics.join('\n')
