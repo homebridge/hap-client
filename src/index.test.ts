@@ -853,6 +853,46 @@ describe('hapClient per-bridge pins (#2936)', () => {
     expect(warn).toHaveBeenCalledTimes(1)
   })
 
+  // Discovery finds every Homebridge on the LAN, including other people's. Their
+  // bridges refuse our pin by design, and telling the reader to "set the pin"
+  // is advice they cannot act on (#2979, #3001) - so when the caller says
+  // which bridges are its own, a stranger's refusal is a debug line only.
+  it('logs another homebridge\'s refusal at debug once told which bridges are ours', async () => {
+    const warn = vi.fn()
+    const debug = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      ownUsernames: ['0e:aa:bb:cc:dd:ee'],
+      logger: { warn, debug, info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false, debug: true },
+    })
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
+    )
+
+    await (client as any).checkInstanceConnection(instance('0E:11:22:33:44:55'))
+
+    expect(warn).not.toHaveBeenCalled()
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('another Homebridge on the network'))
+  })
+
+  it('still warns when one of our own bridges refuses the pin', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      ownUsernames: ['0e:aa:bb:cc:dd:ee'],
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
+    )
+
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused the pin'))
+  })
+
   it('reports a refusal again once the bridge has accepted the pin in between', async () => {
     const warn = vi.fn()
     const client = new HapClient({

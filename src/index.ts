@@ -58,6 +58,8 @@ export class HapClient extends EventEmitter {
    * again, so a mismatch that returns is reported afresh.
    */
   private readonly pinRefusals = new Set<string>()
+  /** See the constructor's `ownUsernames`; undefined means every Homebridge bridge is ours. */
+  private readonly ownUsernames?: Set<string>
   private readonly debugEnabled: boolean = false
   private config: Config
 
@@ -84,6 +86,18 @@ export class HapClient extends EventEmitter {
      * Anything not listed here falls back to `pin`.
      */
     pins?: Record<string, string>
+    /**
+     * The usernames (MACs) of the bridges that belong to THIS Homebridge - the
+     * main bridge and every child bridge in its config.
+     *
+     * Discovery probes every HAP bridge on the network, so it also finds other
+     * people's Homebridge installs, and those refuse this pin forever: their pin
+     * belongs to whoever runs them. When this list is given, a refusal from a
+     * bridge not on it is logged at debug rather than as a warning telling the
+     * owner to fix a pin that is not theirs (homebridge-config-ui-x#2979,
+     * #3001). Without the list every Homebridge bridge is treated as ours.
+     */
+    ownUsernames?: string[]
     logger?: any
     config: any
   }) {
@@ -91,6 +105,9 @@ export class HapClient extends EventEmitter {
     this.pin = opts.pin
     for (const [username, pin] of Object.entries(opts.pins ?? {})) {
       this.pins[HapClient.normaliseUsername(username)] = pin
+    }
+    if (opts.ownUsernames) {
+      this.ownUsernames = new Set(opts.ownUsernames.map(username => HapClient.normaliseUsername(username)))
     }
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
@@ -386,8 +403,15 @@ export class HapClient extends EventEmitter {
       const refusalKey = HapClient.normaliseUsername(instance.username)
       if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !this.pinRefusals.has(refusalKey)) {
         this.pinRefusals.add(refusalKey)
-        this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
-          + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
+        // Only a bridge of ours can have its pin corrected by whoever reads
+        // this log. Another Homebridge on the network is expected to refuse.
+        if (this.ownUsernames === undefined || this.ownUsernames.has(refusalKey)) {
+          this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
+            + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
+        } else {
+          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
+            + `refused the pin and is not one of this Homebridge's bridges, so it is another Homebridge on the network - its accessories are not shown here and nothing needs changing.`)
+        }
       }
       return false
     }
