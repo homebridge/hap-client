@@ -9,16 +9,6 @@ export interface HapInstance {
   connectionFailedCount: number
   services: ServiceType[]
   configurationNumber: number
-  /**
-   * Whether this instance has already been told off for refusing the pin.
-   *
-   * Discovery re-probes every instance on a timer, so without this the warning
-   * repeats for as long as the mismatch lasts. That is fine for a bridge whose
-   * pin the user can correct, and endless for a second Homebridge install on
-   * the same network, whose pin is not theirs to change (#2979). Cleared on the
-   * next successful connection, so a mismatch that returns is reported again.
-   */
-  pinRefusalLogged?: boolean
 }
 
 export interface HapEvInstance {

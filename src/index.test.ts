@@ -832,7 +832,11 @@ describe('hapClient per-bridge pins (#2936)', () => {
   // Discovery re-probes on a timer, so an unchanged mismatch used to reprint the
   // same warning for as long as it lasted. A user running a second Homebridge
   // install cannot fix the other one's pin, so for them it never stopped (#2979).
-  it('names the pin once per instance, not once per discovery cycle', async () => {
+  //
+  // ⚠️ A bridge that refuses the pin is never registered, so every probe hands
+  // over a FRESH instance object - the first fix flagged the object and was
+  // defeated by exactly that. The test has to build a new object each time.
+  it('names the pin once per bridge, however many discovery cycles probe it', async () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
@@ -842,13 +846,30 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
     vi.mocked(axios.put).mockRejectedValue(refused())
 
-    // the same instance object, the way discovery keeps and re-probes it
-    const target = instance('0E:AA:BB:CC:DD:EE')
-    await (client as any).checkInstanceConnection(target)
-    await (client as any).checkInstanceConnection(target)
-    await (client as any).checkInstanceConnection(target)
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+    await (client as any).checkInstanceConnection(instance('0e:aa:bb:cc:dd:ee'))
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
 
     expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a refusal again once the bridge has accepted the pin in between', async () => {
+    const warn = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      config: { autoStartDiscovery: false },
+    })
+    const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
+
+    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
+
+    expect(warn).toHaveBeenCalledTimes(2)
   })
 
   // Silencing it permanently would be the opposite mistake: a pin corrected and

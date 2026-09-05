@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.3.1 (Pending Release)
+
+### Changed
+
+- fix: remember a refused pin on the client, so an unregistered bridge is named once, not every cycle
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.2.3`
+
 ## v5.3.0 (2026-08-31)
 
 ### Changed

@@ -47,6 +47,17 @@ export class HapClient extends EventEmitter {
   private readonly logger: any
   private readonly pin: string
   private readonly pins: Record<string, string> = {}
+  /**
+   * Bridges already told off for refusing the pin, by normalised username.
+   *
+   * Kept on the client, not the instance: a bridge that refuses the pin is
+   * never registered, so a flag on the instance object died with it and the
+   * warning came back on every discovery cycle - which is exactly what the
+   * owner of a second Homebridge install on the same network was seeing
+   * (homebridge-config-ui-x#2979). Cleared when the bridge accepts the pin
+   * again, so a mismatch that returns is reported afresh.
+   */
+  private readonly pinRefusals = new Set<string>()
   private readonly debugEnabled: boolean = false
   private config: Config
 
@@ -351,7 +362,7 @@ export class HapClient extends EventEmitter {
       })
       // A working connection clears the pin complaint, so a mismatch that comes
       // back later is reported again rather than staying silent.
-      instance.pinRefusalLogged = false
+      this.pinRefusals.delete(HapClient.normaliseUsername(instance.username))
       return true
     } catch (e) {
       this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`)
@@ -367,12 +378,14 @@ export class HapClient extends EventEmitter {
       // do with Homebridge, so telling their owner to "set the Homebridge pin"
       // is advice they cannot act on. The mDNS `md` record, kept as
       // `instance.name`, is what separates the two.
-      // Once per instance, not once per discovery cycle. The cause does not
+      // Once per bridge, not once per discovery cycle. The cause does not
       // change between probes, and a second Homebridge install on the same
       // network refuses this pin forever - its pin belongs to whoever runs it,
-      // not to the user reading this log (#2979).
-      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !instance.pinRefusalLogged) {
-        instance.pinRefusalLogged = true
+      // not to the user reading this log (#2979). Remembered on the client, see
+      // pinRefusals: the instance object is discarded when registration fails.
+      const refusalKey = HapClient.normaliseUsername(instance.username)
+      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !this.pinRefusals.has(refusalKey)) {
+        this.pinRefusals.add(refusalKey)
         this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
           + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
       }
