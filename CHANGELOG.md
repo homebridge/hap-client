@@ -7,6 +7,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Changed
 
 - feat!: replace axios with fetch and report characteristic errors
+- fix: remember a refused pin on the client, so an unregistered bridge is named once, not every cycle
 
 ### Homebridge Dependencies
 
