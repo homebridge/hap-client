@@ -270,8 +270,12 @@ export class HapClient extends EventEmitter {
           this.emit('instance-discovered', this.instances[existingInstanceIndex])
           if (configurationChanged) {
             this.emit('instance-configuration-changed', this.instances[existingInstanceIndex])
+            // The accessories changed, so the monitor needs the new service
+            // list, not just a fresh socket to the old one
+            void this.syncMonitorInstance(this.instances[existingInstanceIndex])
+          } else {
+            this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
           }
-          this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
         } else if (this.hapMonitor && this.hapMonitor.isInstanceMonitored(instance.username) && !this.hapMonitor.isInstanceConnected(instance.username)) {
           // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
@@ -333,7 +337,9 @@ export class HapClient extends EventEmitter {
         this.instances.push(instance)
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`)
         this.emit('instance-discovered', instance)
-        this.hapMonitor?.refreshMonitorConnection(instance)
+        // A bridge that registers after the monitor was built has to be added
+        // to it, or it never gets live updates (homebridge-config-ui-x#2979)
+        void this.syncMonitorInstance(instance)
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
@@ -417,7 +423,25 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  private async getAccessories(): Promise<HapAccessoriesRespType['accessories']> {
+  /**
+   * Give a running monitor this bridge's current services - see
+   * HapMonitor.updateInstance. Only this bridge is fetched, so registering one
+   * more bridge does not re-read every other one. A failure is logged and left
+   * for the next discovery cycle; it must never break discovery itself.
+   */
+  private async syncMonitorInstance(instance: HapInstance): Promise<void> {
+    if (!this.hapMonitor) {
+      return
+    }
+    try {
+      const services = await this.getAllServices(instance)
+      this.hapMonitor.updateInstance(instance, services.filter(x => x.instance.username === instance.username))
+    } catch (e) {
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Could not add the bridge to the monitor: ${e?.message ?? e}`)
+    }
+  }
+
+  private async getAccessories(only?: HapInstance): Promise<HapAccessoriesRespType['accessories']> {
     if (!this.instances.length) {
       this.debug('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.')
     }
@@ -427,7 +451,7 @@ export class HapClient extends EventEmitter {
     // this.instances, which shifts the next one into its index and makes the
     // for..of iterator step over it - so the bridge immediately after an evicted
     // one silently contributed nothing to this call.
-    for (const instance of [...this.instances]) {
+    for (const instance of only ? [only] : [...this.instances]) {
       try {
         const resp: HapAccessoriesRespType = (await axios.get(`http://${instance.ipAddress}:${instance.port}/accessories`)).data
         instance.connectionFailedCount = 0
@@ -470,9 +494,9 @@ export class HapClient extends EventEmitter {
    *
    * @returns Array of all services from all Homebridge instances
    */
-  public async getAllServices() {
+  public async getAllServices(only?: HapInstance) {
     /* Get Accessories from HAP */
-    const accessories = await this.getAccessories()
+    const accessories = await this.getAccessories(only)
 
     const services: Array<ServiceType> = []
 

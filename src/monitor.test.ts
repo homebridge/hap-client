@@ -168,6 +168,78 @@ describe('hapMonitor', () => {
   })
 })
 
+/**
+ * A bridge that registers after the monitor was built used to be invisible to
+ * it: `refreshMonitorConnection` only reconnected bridges it already knew, and
+ * nothing ever added a new one. Its values loaded but no live update arrived
+ * until the UI process restarted (homebridge-config-ui-x#2979).
+ */
+describe('hapMonitor updateInstance - bridges that appear after the monitor started', () => {
+  const first = 'AA:BB:CC:DD:EE:FF'
+  const late = '11:22:33:44:55:66'
+  let monitor: HapMonitor
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    monitor = new HapMonitor(null, vi.fn(), '031-45-154', [buildService(first)])
+  })
+
+  afterEach(() => {
+    monitor.finish()
+  })
+
+  it('adds a bridge the monitor has never seen and subscribes to its characteristics', () => {
+    const service = buildService(late)
+
+    monitor.updateInstance(service.instance as any, [service])
+
+    expect(monitor.isInstanceMonitored(late)).toBe(true)
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({ characteristics: [{ aid: 1, iid: 2, ev: true }] })
+  })
+
+  it('routes an event from the late bridge to service-update', () => {
+    const service = buildService(late)
+    monitor.updateInstance(service.instance as any, [service])
+    const updates: any[] = []
+    monitor.on('service-update', update => updates.push(update))
+    vi.mocked(parseMessage).mockReturnValueOnce({
+      protocol: 'EVENT',
+      statusCode: 200,
+      body: JSON.stringify({ characteristics: [{ aid: 1, iid: 2, value: true }] }),
+    } as any)
+    const evInstance = (monitor as any).evInstances.find((x: any) => x.username === late)
+
+    ;(monitor as any).handleEventMessage(evInstance, 'raw')
+
+    expect(updates).toHaveLength(1)
+    expect(updates[0][0].instance.username).toBe(late)
+    expect(updates[0][0].values.On).toBe(true)
+  })
+
+  it('replaces a known bridge\'s services when its configuration changed, and resubscribes', () => {
+    const changed = buildService(first)
+    changed.serviceCharacteristics[0].iid = 9
+
+    monitor.updateInstance(changed.instance as any, [changed])
+
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({ characteristics: [{ aid: 1, iid: 9, ev: true }] })
+    expect((monitor as any).evInstances).toHaveLength(1)
+  })
+
+  it('drops a bridge that no longer has anything to watch', () => {
+    const service = buildService(first)
+    service.serviceCharacteristics[0].perms = ['pr', 'pw']
+    const socket = (monitor as any).evInstances[0].socket
+
+    monitor.updateInstance(service.instance as any, [service])
+
+    expect(socket.destroy).toHaveBeenCalled()
+    expect(monitor.isInstanceMonitored(first)).toBe(false)
+  })
+})
+
 describe('findMessageBoundary', () => {
   function build(body: string, headers: Record<string, string> = {}): Buffer {
     const headerLines = ['EVENT/1.0 200 OK', 'Content-Type: application/hap+json', `Content-Length: ${Buffer.byteLength(body, 'utf8')}`]

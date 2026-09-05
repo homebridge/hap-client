@@ -100,6 +100,68 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     expect(refreshMonitorConnectionSpy).toHaveBeenCalledWith(existingInstance)
   })
 
+  // A bridge that registers after the monitor was built has to be added to it,
+  // with its own services only - or it never gets live updates (#2979)
+  it('adds a newly registered bridge to a running monitor, with only that bridge\'s services', async () => {
+    const username = '11:22:33:44:55:66'
+    const updateInstance = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      updateInstance,
+      refreshMonitorConnection: vi.fn(),
+      isInstanceConnected: vi.fn(),
+      isInstanceMonitored: vi.fn(),
+      finish: vi.fn(),
+    }
+    const ours = { instance: { username }, aid: 1 }
+    const theirs = { instance: { username: 'AA:BB:CC:DD:EE:FF' }, aid: 1 }
+    ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([ours, theirs])
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { accessories: [] } } as any)
+    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': username, 'md': 'homebridge' },
+      port: 51826,
+      addresses: ['127.0.0.1'],
+    })
+
+    await vi.waitFor(() => expect(updateInstance).toHaveBeenCalledTimes(1))
+    const [instance, services] = updateInstance.mock.calls[0]
+    expect(instance.username).toBe(username)
+    expect(services).toEqual([ours])
+  })
+
+  it('refreshes a bridge\'s services in the monitor when its configuration number changes', async () => {
+    const username = 'AA:BB:CC:DD:EE:FF'
+    ;(hapClient as any).instances = [{
+      name: 'Test Bridge',
+      username,
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }]
+    const updateInstance = vi.fn()
+    const refreshMonitorConnection = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      updateInstance,
+      refreshMonitorConnection,
+      isInstanceConnected: vi.fn().mockReturnValue(true),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      finish: vi.fn(),
+    }
+    ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([{ instance: { username }, aid: 1 }])
+
+    await upHandler({
+      txt: { 'c#': 2, 'id': username, 'md': 'Test Bridge' },
+      port: 51826,
+      addresses: [],
+    })
+
+    await vi.waitFor(() => expect(updateInstance).toHaveBeenCalledTimes(1))
+    expect(refreshMonitorConnection).not.toHaveBeenCalled()
+  })
+
   it('should not call refreshMonitorConnection when socket is still alive for an unchanged instance', async () => {
     const username = 'AA:BB:CC:DD:EE:FF'
 
