@@ -63,7 +63,8 @@ export interface HapCharacteristicRespType {
   characteristics: {
     aid: number
     iid: number
-    value: number | string | boolean
+    value?: number | string | boolean
+    status?: number
   }[]
 }
 

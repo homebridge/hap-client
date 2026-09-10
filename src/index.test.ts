@@ -586,7 +586,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.values.On).toBe(true)
   })
 
-  it('should preserve cached value when HAP returns a value-less entry (status error)', async () => {
+  it('should reject and preserve cached values when HAP returns a status error', async () => {
     const service = buildService() as any
 
     vi.mocked(axios.get).mockResolvedValue({
@@ -599,7 +599,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
       },
     } as any)
 
-    await hapClient.refreshServiceCharacteristics(service)
+    await expect(hapClient.refreshServiceCharacteristics(service)).rejects.toThrow('Characteristic 1.10 returned HAP status -70402')
 
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
@@ -631,17 +631,28 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     localClient.destroy()
   })
 
-  it('getCharacteristic should preserve cached value when response entry has no value', async () => {
+  it('getCharacteristic should reject and preserve cached values on a status error', async () => {
     const service = buildService() as any
 
     vi.mocked(axios.get).mockResolvedValue({
       data: { characteristics: [{ aid: 1, iid: 10, status: -70402 }] },
     } as any)
 
-    await hapClient.getCharacteristic(service, 10)
+    await expect(hapClient.getCharacteristic(service, 10)).rejects.toThrow('Characteristic 1.10 returned HAP status -70402')
 
     expect(service.serviceCharacteristics[0].value).toBe(true)
     expect(service.values.On).toBe(true)
+  })
+
+  it.each([0, undefined])('should accept successful reads with status %s', async (status) => {
+    const service = buildService() as any
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { characteristics: [{ aid: 1, iid: 10, value: false, status }] },
+    } as any)
+
+    await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false })
+    await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
+    expect(service.values.On).toBe(false)
   })
 
   it('refreshInstances should log when browser.update() throws instead of swallowing the error', () => {

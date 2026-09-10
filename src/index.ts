@@ -15,6 +15,13 @@ import { toLongFormUUID } from './uuid.js'
 
 export * from './interfaces.js'
 
+class HapCharacteristicError extends Error {
+  constructor(characteristic: HapCharacteristicRespType['characteristics'][number]) {
+    super(`Characteristic ${characteristic.aid}.${characteristic.iid} returned HAP status ${characteristic.status}`)
+    this.name = 'HapCharacteristicError'
+  }
+}
+
 /**
  * Whether a discovered HAP device is one of Homebridge's own bridges.
  *
@@ -32,6 +39,7 @@ const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 export interface Config {
   debug?: boolean
   instanceBlacklist?: string[]
+  instanceWhitelist?: string[]
   discoveryTimeout?: number
   autoStartDiscovery?: boolean
 }
@@ -221,6 +229,12 @@ export class HapClient extends EventEmitter {
       // check instance is not on the blacklist
       if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
         this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
+        return
+      }
+
+      // check instance is on the whitelist
+      if (this.config.instanceWhitelist && this.config.instanceWhitelist.length && !this.config.instanceWhitelist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} not found in whitelist. Disregarding.`)
         return
       }
 
@@ -599,6 +613,12 @@ export class HapClient extends EventEmitter {
         },
       })).data
 
+      for (const characteristic of resp.characteristics) {
+        if (characteristic.status !== undefined && characteristic.status !== 0) {
+          throw new HapCharacteristicError(characteristic)
+        }
+      }
+
       resp.characteristics.forEach((c) => {
         const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid)
         if (!characteristic || c.value === undefined) {
@@ -612,6 +632,9 @@ export class HapClient extends EventEmitter {
       this.debug(`[HapClient] +${e}`)
 
       this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`)
+      if (e instanceof HapCharacteristicError) {
+        throw e
+      }
     }
   }
 
@@ -627,6 +650,9 @@ export class HapClient extends EventEmitter {
       if (!respCharacteristic) {
         return undefined
       }
+      if (respCharacteristic.status !== undefined && respCharacteristic.status !== 0) {
+        throw new HapCharacteristicError(respCharacteristic)
+      }
       const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === service.aid)
       if (!characteristic) {
         return undefined
@@ -641,6 +667,9 @@ export class HapClient extends EventEmitter {
       this.debug(`[HapClient] +${e}`)
 
       this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`)
+      if (e instanceof HapCharacteristicError) {
+        throw e
+      }
     }
   }
 
