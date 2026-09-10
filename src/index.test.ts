@@ -605,6 +605,35 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.values.On).toBe(true)
   })
 
+  it('applies successful partial reads, records errors, and clears status on recovery', async () => {
+    const service = buildService() as any
+    service.serviceCharacteristics.push({ ...service.serviceCharacteristics[0], iid: 11, type: 'Other' })
+    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [
+      { aid: 1, iid: 10, status: -70402 },
+      { aid: 1, iid: 11, value: false },
+    ] } } as any)
+    const errorSpy = vi.spyOn(hapClient, 'error')
+    await expect(hapClient.refreshServiceCharacteristics(service)).rejects.toThrow('HAP status -70402')
+    expect(service.serviceCharacteristics[0]).toMatchObject({ value: true, status: -70402 })
+    expect(service.serviceCharacteristics[1]).toMatchObject({ value: false, status: 0 })
+    expect(service.values.Other).toBe(false)
+    expect(errorSpy).not.toHaveBeenCalled()
+    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [{ aid: 1, iid: 10, value: false }] } } as any)
+    await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false, status: 0 })
+  })
+
+  it('does not request write-only characteristics or send empty requests', async () => {
+    const service = buildService() as any
+    service.serviceCharacteristics.push({ ...service.serviceCharacteristics[0], iid: 11, canRead: false })
+    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [{ aid: 1, iid: 10, value: true }] } } as any)
+    await hapClient.refreshServiceCharacteristics(service)
+    expect(axios.get).toHaveBeenLastCalledWith(expect.any(String), { params: { id: '1.10' } })
+    vi.mocked(axios.get).mockClear()
+    service.serviceCharacteristics[0].canRead = false
+    await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
+    expect(axios.get).not.toHaveBeenCalled()
+  })
+
   it('getCharacteristic should not log an error on an empty characteristics response', async () => {
     const service = buildService() as any
 

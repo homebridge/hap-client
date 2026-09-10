@@ -605,7 +605,10 @@ export class HapClient extends EventEmitter {
 
   async refreshServiceCharacteristics(service: ServiceType): Promise<ServiceType> {
     try {
-      const iids: number[] = service.serviceCharacteristics.map(c => c.iid)
+      const iids: number[] = service.serviceCharacteristics.filter(c => c.canRead).map(c => c.iid)
+      if (!iids.length) {
+        return service
+      }
 
       const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
         params: {
@@ -613,28 +616,32 @@ export class HapClient extends EventEmitter {
         },
       })).data
 
-      for (const characteristic of resp.characteristics) {
-        if (characteristic.status !== undefined && characteristic.status !== 0) {
-          throw new HapCharacteristicError(characteristic)
-        }
-      }
-
+      let firstError: HapCharacteristicError | undefined
       resp.characteristics.forEach((c) => {
-        const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid)
-        if (!characteristic || c.value === undefined) {
+        const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === c.aid)
+        if (!characteristic) {
           return
         }
-        characteristic.value = c.value
-        service.values[characteristic.type] = c.value
+        characteristic.status = c.status ?? 0
+        if (characteristic.status !== 0) {
+          firstError ??= new HapCharacteristicError(c)
+          return
+        }
+        if (c.value !== undefined) {
+          characteristic.value = c.value
+          service.values[characteristic.type] = c.value
+        }
       })
+      if (firstError) {
+        throw firstError
+      }
       return service
     } catch (e) {
-      this.debug(`[HapClient] +${e}`)
-
-      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`)
       if (e instanceof HapCharacteristicError) {
         throw e
       }
+      this.debug(`[HapClient] +${e}`)
+      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`)
     }
   }
 
@@ -650,12 +657,13 @@ export class HapClient extends EventEmitter {
       if (!respCharacteristic) {
         return undefined
       }
-      if (respCharacteristic.status !== undefined && respCharacteristic.status !== 0) {
-        throw new HapCharacteristicError(respCharacteristic)
-      }
-      const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === service.aid)
+      const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === respCharacteristic.aid)
       if (!characteristic) {
         return undefined
+      }
+      characteristic.status = respCharacteristic.status ?? 0
+      if (characteristic.status !== 0) {
+        throw new HapCharacteristicError(respCharacteristic)
       }
       if (respCharacteristic.value !== undefined) {
         characteristic.value = respCharacteristic.value
@@ -664,12 +672,11 @@ export class HapClient extends EventEmitter {
 
       return characteristic
     } catch (e) {
-      this.debug(`[HapClient] +${e}`)
-
-      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`)
       if (e instanceof HapCharacteristicError) {
         throw e
       }
+      this.debug(`[HapClient] +${e}`)
+      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`)
     }
   }
 
