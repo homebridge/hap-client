@@ -156,11 +156,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     // Attach a mock hapMonitor with the socket marked as closed
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-        isInstanceConnected: vi.fn().mockReturnValue(false),
-        isInstanceMonitored: vi.fn().mockReturnValue(true),
-        refreshMonitorConnection: refreshMonitorConnectionSpy,
-        finish: vi.fn(),
-      }
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: refreshMonitorConnectionSpy,
+      finish: vi.fn(),
+    }
 
     // Simulate bonjour re-announcing the same device (same port/name/configurationNumber)
     await upHandler({
@@ -188,11 +188,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-        isInstanceConnected: vi.fn().mockReturnValue(true),
-        isInstanceMonitored: vi.fn().mockReturnValue(true),
-        refreshMonitorConnection: refreshMonitorConnectionSpy,
-        finish: vi.fn(),
-      }
+      isInstanceConnected: vi.fn().mockReturnValue(true),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: refreshMonitorConnectionSpy,
+      finish: vi.fn(),
+    }
 
     await upHandler({
       txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
@@ -509,7 +509,7 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
     // Simulates the state where startDiscovery set discoveryInProgress = true
     // and bonjour.find() then threw before assigning this.browser.
     (hapClient as any).discoveryInProgress = true
-      ; (hapClient as any).browser = undefined
+    ; (hapClient as any).browser = undefined
 
     expect(() => hapClient.resetInstancePool()).not.toThrow()
   })
@@ -681,7 +681,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
       characteristics: [
         { aid: 1, iid: 10, status: -70402 },
         { aid: 1, iid: 11, value: false },
-      ]
+      ],
     }))
     const errorSpy = vi.spyOn(hapClient, 'error')
     await expect(hapClient.refreshServiceCharacteristics(service)).rejects.toThrow('HAP status -70402')
