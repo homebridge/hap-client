@@ -2,6 +2,32 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.4.0 (pending)
+
+### Breaking Change
+
+- `getValue()` and `refreshServiceCharacteristics()` now throw when a characteristic
+  returns a non-zero HAP status (e.g. not responding), instead of leaving the last
+  known value in place.
+- Added a `status` field to returned characteristics — zero indicates the last read
+  succeeded; non-zero indicates a HomeKit/HAP error (e.g. not responding).
+
+### Changed
+
+- Replaced Axios with native Node `fetch` for all HAP requests
+- Added `debugRawPackets` config option to log raw HAP packets and `getValue()`
+  HTTP exchanges as plain text (sensitive — may include the bridge PIN)
+- Added `instanceAllowList` config option
+- Deprecated `instanceBlacklist` in favor of `instanceDenyList`
+- `HapMonitor` now emits one `service-update` per service per event, even when
+  several characteristics on that service change at once
+- A `StatusActive` change now refreshes the service's other readable, event-enabled
+  characteristics before `service-update` is emitted
+  
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.2.3`
+  
 ## v5.3.0 (2026-08-31)
 
 ### Changed
