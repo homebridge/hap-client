@@ -20,7 +20,7 @@ const client = new HapClient({
     autoStartDiscovery: false,
     discoveryTimeout: 5000,
     debug: process.env.HAP_DEBUG === '1',
-    instanceWhitelist: ['69:62:B7:AE:38:D4'],
+    instanceAllowList: ['69:62:B7:AE:38:D4'],
   },
 })
 

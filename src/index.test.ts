@@ -1,13 +1,41 @@
+import { Buffer } from 'node:buffer'
 import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
 
-import axios from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Characteristics, Services } from './hap-types.js'
 import { HapClient } from './index.js'
 
-vi.mock('axios')
+const mockFetch = vi.fn()
+
+function fetchResponse(
+  data: unknown,
+  status = 200,
+  statusText = 'OK',
+  headers: Record<string, string> = {},
+) {
+  const body = typeof data === 'string' ? data : JSON.stringify(data)
+
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    headers: {
+      entries: () => Object.entries(headers),
+    },
+    json: async () => JSON.parse(body),
+    text: async () => body,
+    arrayBuffer: async () => Uint8Array.from(Buffer.from(body)).buffer,
+  }
+}
+
+vi.stubGlobal('fetch', mockFetch)
+
+beforeEach(() => {
+  mockFetch.mockReset()
+})
+
 vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
 
 let mockBrowserOn: ReturnType<typeof vi.fn>
@@ -49,6 +77,50 @@ describe('hapClient', () => {
   })
 })
 
+describe('hapClient raw packet logging', () => {
+  const instance = {
+    name: 'Test Bridge',
+    username: 'AA:BB:CC:DD:EE:FF',
+    ipAddress: '127.0.0.1',
+    port: 51826,
+    services: [],
+    connectionFailedCount: 0,
+    configurationNumber: 1,
+  }
+
+  it('passes the raw packet to the debug logger as plain text when enabled', () => {
+    const debug = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { debug },
+      config: { autoStartDiscovery: false, debug: true, debugRawPackets: true },
+    })
+    const packet = Buffer.from('EVENT/1.0 200 OK\r\nContent-Length: 0\r\n\r\n')
+
+      ; (client as any).debugPacket('received', instance, packet)
+
+    expect(debug).toHaveBeenCalledWith(
+      '[HapClient] [127.0.0.1:51826 (AA:BB:CC:DD:EE:FF)] Raw packet received:\n'
+      + 'EVENT/1.0 200 OK\r\nContent-Length: 0\r\n\r\n',
+    )
+    client.destroy()
+  })
+
+  it('does not log raw packets unless both debug options are enabled', () => {
+    const debug = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { debug },
+      config: { autoStartDiscovery: false, debug: true },
+    })
+
+      ; (client as any).debugPacket('received', instance, Buffer.from('packet'))
+
+    expect(debug).not.toHaveBeenCalled()
+    client.destroy()
+  })
+})
+
 describe('hapClient bonjour up handler - same-port restart', () => {
   let hapClient: HapClient
   let upHandler: (device: any) => Promise<void>
@@ -84,11 +156,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     // Attach a mock hapMonitor with the socket marked as closed
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-      isInstanceConnected: vi.fn().mockReturnValue(false),
-      isInstanceMonitored: vi.fn().mockReturnValue(true),
-      refreshMonitorConnection: refreshMonitorConnectionSpy,
-      finish: vi.fn(),
-    }
+        isInstanceConnected: vi.fn().mockReturnValue(false),
+        isInstanceMonitored: vi.fn().mockReturnValue(true),
+        refreshMonitorConnection: refreshMonitorConnectionSpy,
+        finish: vi.fn(),
+      }
 
     // Simulate bonjour re-announcing the same device (same port/name/configurationNumber)
     await upHandler({
@@ -116,11 +188,11 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
     const refreshMonitorConnectionSpy = vi.fn()
       ; (hapClient as any).hapMonitor = {
-      isInstanceConnected: vi.fn().mockReturnValue(true),
-      isInstanceMonitored: vi.fn().mockReturnValue(true),
-      refreshMonitorConnection: refreshMonitorConnectionSpy,
-      finish: vi.fn(),
-    }
+        isInstanceConnected: vi.fn().mockReturnValue(true),
+        isInstanceMonitored: vi.fn().mockReturnValue(true),
+        refreshMonitorConnection: refreshMonitorConnectionSpy,
+        finish: vi.fn(),
+      }
 
     await upHandler({
       txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
@@ -186,12 +258,7 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
 
   afterEach(() => {
     hapClient.destroy()
-    // Registering an instance exercises checkInstanceConnection, which issues an
-    // axios.put. Clear the shared mocks so that call history does not leak into
-    // later tests that assert on it.
     vi.mocked(lookup).mockReset()
-    vi.mocked(axios.get).mockClear()
-    vi.mocked(axios.put).mockClear()
   })
 
   it('resolves the hostname when bonjour-service supplies no addresses', async () => {
@@ -199,7 +266,7 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
     // repeated A records, so bonjour-service hands us an empty addresses array.
     // Without the hostname fallback the bridge is dropped without being probed.
     vi.mocked(lookup).mockResolvedValue([{ address: '192.168.1.50', family: 4 }] as any)
-    vi.mocked(axios.get).mockResolvedValue({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
 
     await upHandler({
       txt: { 'c#': 1, 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'Shared Host Bridge' },
@@ -217,7 +284,7 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
   })
 
   it('does not resolve the hostname when a usable address is already supplied', async () => {
-    vi.mocked(axios.get).mockResolvedValue({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
 
     await upHandler({
       txt: { 'c#': 1, 'id': 'BB:CC:DD:EE:FF:AA', 'md': 'Normal Bridge' },
@@ -258,9 +325,10 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
     // else on that port, or one still starting up. Breaking out of the probe
     // loop there left ipAddress null and the instance unregistered while a
     // working sibling address was never tried.
-    vi.mocked(axios.get)
-      .mockResolvedValueOnce({ data: {} } as any)
-      .mockResolvedValueOnce({ data: { accessories: [{ aid: 1, services: [] }] } } as any)
+    mockFetch
+      .mockResolvedValueOnce(fetchResponse({}))
+      .mockResolvedValueOnce(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
+      .mockResolvedValue(fetchResponse({}))
 
     await upHandler({
       txt: { 'c#': 1, 'id': 'EE:FF:AA:BB:CC:DD', 'md': 'Multi Homed Bridge' },
@@ -269,7 +337,14 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
       addresses: ['192.168.1.60', '192.168.1.61'],
     })
 
-    expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
+    // Two calls probe the advertised addresses; a third call verifies the
+    // selected address with a PUT before registering the instance.
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+
+    expect(mockFetch.mock.calls[0][0]).toBe('http://192.168.1.60:51830/accessories')
+    expect(mockFetch.mock.calls[1][0]).toBe('http://192.168.1.61:51830/accessories')
+    expect(mockFetch.mock.calls[2][0]).toBe('http://192.168.1.61:51830/characteristics')
+    expect(mockFetch.mock.calls[2][1]).toEqual(expect.objectContaining({ method: 'PUT' }))
 
     const instances = (hapClient as any).instances
     expect(instances.length).toBe(1)
@@ -312,9 +387,9 @@ describe('hapClient getAccessories - failing instance removal', () => {
       connectionFailedCount: 0,
       configurationNumber: 1,
     }
-    ;(hapClient as any).instances = [failingInstance, healthyInstance]
+      ; (hapClient as any).instances = [failingInstance, healthyInstance]
 
-    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+    mockFetch.mockImplementation(async (url: string) => {
       if (url.includes('1.1.1.1')) {
         // Simulate the racing concurrent removal of the failing instance
         // before this catch handler reaches the splice.
@@ -324,7 +399,7 @@ describe('hapClient getAccessories - failing instance removal', () => {
         }
         throw new Error('connection refused')
       }
-      return { data: { accessories: [] } } as any
+      return fetchResponse({ accessories: [] })
     })
 
     await (hapClient as any).getAccessories()
@@ -357,13 +432,13 @@ describe('hapClient getAccessories - failing instance removal', () => {
       connectionFailedCount: 0,
       configurationNumber: 1,
     }
-    ;(hapClient as any).instances = [failing, nextInLine]
+      ; (hapClient as any).instances = [failing, nextInLine]
 
-    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+    mockFetch.mockImplementation(async (url: string) => {
       if (url.includes('1.1.1.1')) {
         throw new Error('connection refused')
       }
-      return { data: { accessories: [{ aid: 1, services: [] }] } } as any
+      return fetchResponse({ accessories: [{ aid: 1, services: [] }] })
     })
 
     const accessories = await (hapClient as any).getAccessories()
@@ -416,7 +491,7 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
   })
 
   it('should not stack resetInstancePoolTimeouts when called repeatedly', () => {
-    const refreshSpy = vi.spyOn(hapClient, 'refreshInstances').mockImplementation(() => {})
+    const refreshSpy = vi.spyOn(hapClient, 'refreshInstances').mockImplementation(() => { })
 
     hapClient.resetInstancePool()
     hapClient.resetInstancePool()
@@ -434,7 +509,7 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
     // Simulates the state where startDiscovery set discoveryInProgress = true
     // and bonjour.find() then threw before assigning this.browser.
     (hapClient as any).discoveryInProgress = true
-    ;(hapClient as any).browser = undefined
+      ; (hapClient as any).browser = undefined
 
     expect(() => hapClient.resetInstancePool()).not.toThrow()
   })
@@ -466,45 +541,43 @@ describe('hapClient getAllServices - null Name characteristic value', () => {
       connectionFailedCount: 0,
       configurationNumber: 1,
     }
-    ;(hapClient as any).instances = [instance]
+      ; (hapClient as any).instances = [instance]
 
-    vi.mocked(axios.get).mockResolvedValue({
-      data: {
-        accessories: [
-          {
-            aid: 1,
-            services: [
-              {
-                iid: 1,
-                type: switchUuid,
-                primary: true,
-                hidden: false,
-                characteristics: [
-                  // Name characteristic exists but value is null — the previous
-                  // fallback only fired when the characteristic was missing.
-                  {
-                    iid: 2,
-                    type: Characteristics.Name,
-                    description: 'Name',
-                    value: null,
-                    format: 'string',
-                    perms: ['pr'],
-                  },
-                  {
-                    iid: 3,
-                    type: onUuid,
-                    description: 'On',
-                    value: false,
-                    format: 'bool',
-                    perms: ['pr', 'pw', 'ev'],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({
+      accessories: [
+        {
+          aid: 1,
+          services: [
+            {
+              iid: 1,
+              type: switchUuid,
+              primary: true,
+              hidden: false,
+              characteristics: [
+                // Name characteristic exists but value is null — the previous
+                // fallback only fired when the characteristic was missing.
+                {
+                  iid: 2,
+                  type: Characteristics.Name,
+                  description: 'Name',
+                  value: null,
+                  format: 'string',
+                  perms: ['pr'],
+                },
+                {
+                  iid: 3,
+                  type: onUuid,
+                  description: 'On',
+                  value: false,
+                  format: 'bool',
+                  perms: ['pr', 'pw', 'ev'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }))
 
     // getAllServices() must resolve (not reject) when a Name characteristic
     // has a null value; awaiting it directly fails the test if it throws.
@@ -570,14 +643,12 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   it('should skip response characteristics whose iid is not in the service', async () => {
     const service = buildService() as any
 
-    vi.mocked(axios.get).mockResolvedValue({
-      data: {
-        characteristics: [
-          // iid 99 is not in the service — without the guard `characteristic.value = c.value` throws.
-          { aid: 1, iid: 99, value: false },
-        ],
-      },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        // iid 99 is not in the service — without the guard `characteristic.value = c.value` throws.
+        { aid: 1, iid: 99, value: false },
+      ],
+    }))
 
     await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
 
@@ -589,15 +660,13 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   it('should reject and preserve cached values when HAP returns a status error', async () => {
     const service = buildService() as any
 
-    vi.mocked(axios.get).mockResolvedValue({
-      data: {
-        // HAP returns `{ aid, iid, status }` with no `value` field on per-char errors.
-        // Without the guard `characteristic.value = c.value` overwrites `true` with `undefined`.
-        characteristics: [
-          { aid: 1, iid: 10, status: -70402 },
-        ],
-      },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({
+      // HAP returns `{ aid, iid, status }` with no `value` field on per-char errors.
+      // Without the guard `characteristic.value = c.value` overwrites `true` with `undefined`.
+      characteristics: [
+        { aid: 1, iid: 10, status: -70402 },
+      ],
+    }))
 
     await expect(hapClient.refreshServiceCharacteristics(service)).rejects.toThrow('Characteristic 1.10 returned HAP status -70402')
 
@@ -608,30 +677,34 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   it('applies successful partial reads, records errors, and clears status on recovery', async () => {
     const service = buildService() as any
     service.serviceCharacteristics.push({ ...service.serviceCharacteristics[0], iid: 11, type: 'Other' })
-    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [
-      { aid: 1, iid: 10, status: -70402 },
-      { aid: 1, iid: 11, value: false },
-    ] } } as any)
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 1, iid: 10, status: -70402 },
+        { aid: 1, iid: 11, value: false },
+      ]
+    }))
     const errorSpy = vi.spyOn(hapClient, 'error')
     await expect(hapClient.refreshServiceCharacteristics(service)).rejects.toThrow('HAP status -70402')
     expect(service.serviceCharacteristics[0]).toMatchObject({ value: true, status: -70402 })
     expect(service.serviceCharacteristics[1]).toMatchObject({ value: false, status: 0 })
     expect(service.values.Other).toBe(false)
     expect(errorSpy).not.toHaveBeenCalled()
-    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [{ aid: 1, iid: 10, value: false }] } } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: false }] }))
     await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false, status: 0 })
   })
 
   it('does not request write-only characteristics or send empty requests', async () => {
     const service = buildService() as any
     service.serviceCharacteristics.push({ ...service.serviceCharacteristics[0], iid: 11, canRead: false })
-    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [{ aid: 1, iid: 10, value: true }] } } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: true }] }))
     await hapClient.refreshServiceCharacteristics(service)
-    expect(axios.get).toHaveBeenLastCalledWith(expect.any(String), { params: { id: '1.10' } })
-    vi.mocked(axios.get).mockClear()
+    expect(mockFetch.mock.calls.at(-1)?.[0]).toEqual(
+      expect.stringContaining('/characteristics?id=1.10'),
+    )
+    mockFetch.mockClear()
     service.serviceCharacteristics[0].canRead = false
     await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
-    expect(axios.get).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('getCharacteristic should not log an error on an empty characteristics response', async () => {
@@ -645,9 +718,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
       config: { autoStartDiscovery: false },
     })
 
-    vi.mocked(axios.get).mockResolvedValue({
-      data: { characteristics: [] },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [] }))
 
     // Without the guard `resp.characteristics[0].iid` throws a TypeError that
     // the try/catch swallows — but the misleading "Failed to get characteristic"
@@ -663,9 +734,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   it('getCharacteristic should reject and preserve cached values on a status error', async () => {
     const service = buildService() as any
 
-    vi.mocked(axios.get).mockResolvedValue({
-      data: { characteristics: [{ aid: 1, iid: 10, status: -70402 }] },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, status: -70402 }] }))
 
     await expect(hapClient.getCharacteristic(service, 10)).rejects.toThrow('Characteristic 1.10 returned HAP status -70402')
 
@@ -673,11 +742,44 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.values.On).toBe(true)
   })
 
+  it('getCharacteristic logs the unparsed response body when raw logging is enabled', async () => {
+    const service = buildService() as any
+    const debug = vi.fn()
+    const localClient = new HapClient({
+      pin: '123-45-678',
+      logger: { debug },
+      config: { autoStartDiscovery: false, debug: true, debugRawPackets: true },
+    })
+    const rawBody = '{"characteristics":[{"aid":1,"iid":10,"value":false}]}'
+    mockFetch.mockResolvedValue(
+      fetchResponse(rawBody, 207, 'Multi-Status', {
+        'content-length': String(Buffer.byteLength(rawBody)),
+        'content-type': 'application/hap+json',
+      }),
+    )
+
+    await expect(localClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false })
+
+    expect(debug).toHaveBeenCalledWith(
+      '[HapClient] [127.0.0.1:51826 (AA:BB:CC:DD:EE:FF)] Raw getValue(1.10) request sent:\n'
+      + 'GET /characteristics?id=1.10 HTTP/1.1\r\nHost: 127.0.0.1:51826\r\n\r\n',
+    )
+    expect(debug).toHaveBeenCalledWith(
+      '[HapClient] [127.0.0.1:51826 (AA:BB:CC:DD:EE:FF)] Raw getValue(1.10) response:\n'
+      + 'HTTP/1.1 207 Multi-Status\r\n'
+      + `content-length: ${Buffer.byteLength(rawBody)}\r\n`
+      + 'content-type: application/hap+json\r\n'
+      + `\r\n${rawBody}`,
+    )
+    expect(mockFetch.mock.calls.at(-1)?.[0]).toEqual(
+      expect.stringContaining('/characteristics?id=1.10'),
+    )
+    localClient.destroy()
+  })
+
   it.each([0, undefined])('should accept successful reads with status %s', async (status) => {
     const service = buildService() as any
-    vi.mocked(axios.get).mockResolvedValue({
-      data: { characteristics: [{ aid: 1, iid: 10, value: false, status }] },
-    } as any)
+    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: false, status }] }))
 
     await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false })
     await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
@@ -741,8 +843,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
       ev: false,
     })
 
-    const putSpy = vi.mocked(axios.put).mockResolvedValue({ data: {} } as any)
-    vi.mocked(axios.get).mockResolvedValue({ data: { characteristics: [] } } as any)
+    const putSpy = mockFetch
 
     await hapClient.setCharacteristicsByTypes(service, { 'Configured Name': 'Bar' })
 
@@ -765,7 +866,7 @@ describe('hapClient monitorCharacteristics - replacing existing monitor', () => 
 
   it('should call finish() on the previous monitor before replacing it', async () => {
     const previousFinish = vi.fn()
-    ;(hapClient as any).hapMonitor = { finish: previousFinish }
+      ; (hapClient as any).hapMonitor = { finish: previousFinish }
 
     // Pass an empty services array so HapMonitor construction doesn't try to open sockets.
     await hapClient.monitorCharacteristics([])
@@ -839,14 +940,19 @@ describe('hapClient per-bridge pins (#2936)', () => {
       pins: { '0E:AA:BB:CC:DD:EE': '999-88-777' },
       config: { autoStartDiscovery: false },
     })
-    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+    mockFetch.mockResolvedValueOnce(fetchResponse({}))
 
     await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
 
-    expect(axios.put).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
-      expect.anything(),
-      expect.objectContaining({ headers: { Authorization: '999-88-777' } }),
+      expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({
+          Authorization: '999-88-777',
+        }),
+        body: expect.any(String),
+      }),
     )
   })
 
@@ -859,9 +965,7 @@ describe('hapClient per-bridge pins (#2936)', () => {
       logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
       config: { autoStartDiscovery: false },
     })
-    vi.mocked(axios.put).mockRejectedValueOnce(
-      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
-    )
+    mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))
 
     const ok = await (client as any).checkInstanceConnection(instance('0E:AA:BB:CC:DD:EE'))
 
@@ -879,8 +983,7 @@ describe('hapClient per-bridge pins (#2936)', () => {
       logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
       config: { autoStartDiscovery: false },
     })
-    const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
-    vi.mocked(axios.put).mockRejectedValue(refused())
+    mockFetch.mockResolvedValue(fetchResponse({}, 470, ''))
 
     // the same instance object, the way discovery keeps and re-probes it
     const target = instance('0E:AA:BB:CC:DD:EE')
@@ -900,16 +1003,15 @@ describe('hapClient per-bridge pins (#2936)', () => {
       logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
       config: { autoStartDiscovery: false },
     })
-    const refused = () => Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } })
     const target = instance('0E:AA:BB:CC:DD:EE')
 
-    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))
     await (client as any).checkInstanceConnection(target)
 
-    vi.mocked(axios.put).mockResolvedValueOnce({} as any)
+    mockFetch.mockResolvedValueOnce(fetchResponse({}))
     await (client as any).checkInstanceConnection(target)
 
-    vi.mocked(axios.put).mockRejectedValueOnce(refused())
+    mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))
     await (client as any).checkInstanceConnection(target)
 
     expect(warn).toHaveBeenCalledTimes(2)
@@ -926,9 +1028,7 @@ describe('hapClient per-bridge pins (#2936)', () => {
       logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
       config: { autoStartDiscovery: false },
     })
-    vi.mocked(axios.put).mockRejectedValueOnce(
-      Object.assign(new Error('Request failed with status code 470'), { response: { status: 470 } }),
-    )
+    mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))
 
     // md=Scrypted, as a non-Homebridge HAP server advertises
     const ok = await (client as any).checkInstanceConnection(instance('32:46:85:f8:7b:a7', 'Scrypted'))

@@ -1,9 +1,9 @@
 /* global NodeJS */
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
 
-import axios from 'axios'
 import Bonjour from 'bonjour-service'
 import decamelize from 'decamelize'
 import { titleize } from 'inflection'
@@ -38,8 +38,12 @@ const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
 export interface Config {
   debug?: boolean
+  /** Log raw HAP TCP packets as plain text. May expose sensitive data such as the bridge PIN. */
+  debugRawPackets?: boolean
+  /** @deprecated Use instanceDenyList instead. This will be removed in a future release. */
   instanceBlacklist?: string[]
-  instanceWhitelist?: string[]
+  instanceDenyList?: string[]
+  instanceAllowList?: string[]
   discoveryTimeout?: number
   autoStartDiscovery?: boolean
 }
@@ -56,6 +60,7 @@ export class HapClient extends EventEmitter {
   private readonly pin: string
   private readonly pins: Record<string, string> = {}
   private readonly debugEnabled: boolean = false
+  private readonly debugRawPacketsEnabled: boolean = false
   private config: Config
 
   private instances: HapInstance[] = []
@@ -91,6 +96,7 @@ export class HapClient extends EventEmitter {
     }
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
+    this.debugRawPacketsEnabled = !!opts.config.debugRawPackets
     this.config = {
       ...opts.config,
       discoveryTimeout: opts.config.discoveryTimeout ?? this.defaultDiscoveryTimeout,
@@ -123,6 +129,47 @@ export class HapClient extends EventEmitter {
     this.logMessage('debug', msg, true)
   }
 
+  private debugPacket(direction: 'received' | 'sent', instance: HapInstance, packet: Buffer) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw packet ${direction}:\n${packet.toString('utf8')}`)
+  }
+
+  private debugRawResponse(instance: HapInstance, operation: string, response: any) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+    const incomingMessage = response.request?.res
+    const status = incomingMessage?.statusCode ?? response.status
+    const statusText = incomingMessage?.statusMessage ?? response.statusText
+    const httpVersion = incomingMessage?.httpVersion ?? '1.1'
+    const rawHeaders: string[] = incomingMessage?.rawHeaders ?? Object.entries(response.headers ?? {})
+      .flatMap(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : String(value)])
+    const statusLine = status ? `HTTP/${httpVersion} ${status}${statusText ? ` ${statusText}` : ''}\r\n` : ''
+    const headers = rawHeaders.length
+      ? `${Array.from({ length: rawHeaders.length / 2 }, (_, index) => `${rawHeaders[index * 2]}: ${rawHeaders[index * 2 + 1]}`).join('\r\n')}\r\n`
+      : ''
+    const packet = `${statusLine}${headers}\r\n${body}`
+
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} response:\n${packet}`)
+  }
+
+  private debugRawRequest(instance: HapInstance, operation: string, response: any, fallback: string) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    // Node's ClientRequest retains the exact serialized request headers in
+    // `_header`. Other Axios adapters do not expose that value, so use the
+    // equivalent minimal HTTP request as a fallback.
+    const packet = response.request?._header ?? fallback
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} request sent:\n${packet}`)
+  }
+
   info(msg: string) {
     this.logMessage('info', msg)
   }
@@ -133,6 +180,16 @@ export class HapClient extends EventEmitter {
 
   error(msg: string) {
     this.logMessage('error', msg)
+  }
+
+  private async fetchJson<T>(url: string, options?: Parameters<typeof fetch>[1]): Promise<T> {
+    const response = await fetch(url, options)
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+        ; (error as any).response = { status: response.status }
+      throw error
+    }
+    return response.json() as Promise<T>
   }
 
   // Example usage in methods
@@ -226,14 +283,17 @@ export class HapClient extends EventEmitter {
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`)
 
-      // check instance is not on the blacklist
-      if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
-        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
+      // Combine lists or fall back to the old property safely
+      const denyList = this.config.instanceDenyList ?? this.config.instanceBlacklist
+
+      // check instance is not on the denylist
+      if (denyList && denyList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in denylist. Disregarding.`)
         return
       }
 
       // check instance is on the whitelist
-      if (this.config.instanceWhitelist && this.config.instanceWhitelist.length && !this.config.instanceWhitelist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+      if (this.config.instanceAllowList && this.config.instanceAllowList.length && !this.config.instanceAllowList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
         this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} not found in whitelist. Disregarding.`)
         return
       }
@@ -292,9 +352,9 @@ export class HapClient extends EventEmitter {
         if (IPV4_REGEX.test(ip)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`)
-            const test: HapAccessoriesRespType = (await axios.get(`http://${ip}:${device.port}/accessories`, {
-              timeout: 10000,
-            })).data
+            const test: HapAccessoriesRespType = await this.fetchJson(`http://${ip}:${device.port}/accessories`, {
+              signal: AbortSignal.timeout(10000),
+            })
             if (test.accessories) {
               this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`)
               instance.ipAddress = ip
@@ -356,12 +416,15 @@ export class HapClient extends EventEmitter {
 
   private async checkInstanceConnection(instance: HapInstance): Promise<boolean> {
     try {
-      await axios.put(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
-        characteristics: [{ aid: -1, iid: -1 }],
-      }, {
+      await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(instance),
+          'Authorization': this.pinFor(instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics: [{ aid: -1, iid: -1 }],
+        }),
       })
       // A working connection clears the pin complaint, so a mismatch that comes
       // back later is reported again rather than staying silent.
@@ -406,7 +469,7 @@ export class HapClient extends EventEmitter {
     // one silently contributed nothing to this call.
     for (const instance of [...this.instances]) {
       try {
-        const resp: HapAccessoriesRespType = (await axios.get(`http://${instance.ipAddress}:${instance.port}/accessories`)).data
+        const resp: HapAccessoriesRespType = await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/accessories`)
         instance.connectionFailedCount = 0
         for (const accessory of resp.accessories) {
           accessory.instance = instance
@@ -439,7 +502,13 @@ export class HapClient extends EventEmitter {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices()
     this.hapMonitor?.finish()
-    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), instance => this.pinFor(instance), services)
+    this.hapMonitor = new HapMonitor(
+      this.logger,
+      this.debug.bind(this),
+      instance => this.pinFor(instance),
+      services,
+      this.debugPacket.bind(this),
+    )
     return this.hapMonitor
   }
 
@@ -610,11 +679,8 @@ export class HapClient extends EventEmitter {
         return service
       }
 
-      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        params: {
-          id: iids.map(iid => `${service.aid}.${iid}`).join(','),
-        },
-      })).data
+      const url = `http://${service.instance.ipAddress}:${service.instance.port}/characteristics?id=${encodeURIComponent(iids.map(iid => `${service.aid}.${iid}`).join(','))}`
+      const resp: HapCharacteristicRespType = await this.fetchJson(url)
 
       let firstError: HapCharacteristicError | undefined
       resp.characteristics.forEach((c) => {
@@ -647,11 +713,25 @@ export class HapClient extends EventEmitter {
 
   async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
     try {
-      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        params: {
-          id: `${service.aid}.${iid}`,
-        },
-      })).data
+      const characteristicId = `${service.aid}.${iid}`
+      const requestTarget = `/characteristics?id=${encodeURIComponent(characteristicId)}`
+      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}${requestTarget}`)
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+          ; (error as any).response = { status: response.status }
+        throw error
+      }
+      const responseData = await response.text()
+      const responseForDebug = {
+        data: responseData,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      }
+      const fallbackRequest = `GET ${requestTarget} HTTP/1.1\r\nHost: ${service.instance.ipAddress}:${service.instance.port}\r\n\r\n`
+      this.debugRawRequest(service.instance, `getValue(${characteristicId})`, responseForDebug, fallbackRequest)
+      this.debugRawResponse(service.instance, `getValue(${characteristicId})`, responseForDebug)
+      const resp: HapCharacteristicRespType = JSON.parse(responseData)
 
       const respCharacteristic = resp.characteristics?.[0]
       if (!respCharacteristic) {
@@ -690,18 +770,21 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
     try {
-      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        characteristics: [
-          {
-            aid: service.aid,
-            iid,
-            value,
-          },
-        ],
-      }, {
+      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics: [
+            {
+              aid: service.aid,
+              iid,
+              value,
+            },
+          ],
+        }),
       })
       return this.getCharacteristic(service, iid)
     } catch (e) {
@@ -743,12 +826,15 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristics(service: ServiceType, characteristics: { aid: number, iid: number, value: string | number | boolean }[]) {
     try {
-      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        characteristics,
-      }, {
+      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics,
+        }),
       })
       return this.refreshServiceCharacteristics(service)
     } catch (e) {
@@ -768,15 +854,21 @@ export class HapClient extends EventEmitter {
 
   async getResource(service: ServiceType, body: ResourceRequestType) {
     try {
-      const resp: any = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`, {
-        ...body,
-        aid: service.aid,
-      }, {
-        responseType: 'arraybuffer',
+      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}/resource`, {
+        method: 'POST',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          ...body,
+          aid: service.aid,
+        }),
       })
+      const resp: any = {
+        status: response.status,
+        data: Buffer.from(await response.arrayBuffer()),
+      }
       if (resp.status === 200) {
         return resp.data
       } else {

@@ -4,9 +4,17 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ## v5.4.0 (pending)
 
-### Changed
+### Breaking Change
 
 - updated getValue to return an error when a characteristic is not responding.
+- added HAP status field to characterics returned.  A none zero value indicates a HomeKit error was received ie not responding
+
+### Changed
+
+- Switched from Axios to Node Native Fetch
+- Added debugRawPackets config option, to log raw HAP messages
+- Added instanceAllowList config option
+- Deprecated instanceBlacklist config option, and replaced with instanceDenyList
 
 ### Homebridge Dependencies
 
