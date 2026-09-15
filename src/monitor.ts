@@ -62,16 +62,19 @@ export class HapMonitor extends EventEmitter {
   private readonly services: ServiceType[]
   private logger: any
   private readonly debug: (arg0: string) => void
+  private readonly debugPacket?: (direction: 'received' | 'sent', instance: HapEvInstance, packet: Buffer) => void
 
   constructor(
     logger: any,
     debug: any,
     pin: string | ((instance: { username?: string }) => string),
     services: ServiceType[],
+    debugPacket?: (direction: 'received' | 'sent', instance: HapEvInstance, packet: Buffer) => void,
   ) {
     super()
     this.logger = logger
     this.debug = debug
+    this.debugPacket = debugPacket
     this.pinFor = typeof pin === 'function' ? pin : () => pin
     this.services = services
     this.evInstances = [] as HapEvInstance[]
@@ -104,7 +107,12 @@ export class HapMonitor extends EventEmitter {
   connectInstance(instance: HapEvInstance) {
     try {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`)
-      instance.socket = createConnection(instance, this.pinFor(instance), { characteristics: instance.evCharacteristics })
+      instance.socket = createConnection(
+        instance,
+        this.pinFor(instance),
+        { characteristics: instance.evCharacteristics },
+        packet => this.debugPacket?.('sent', instance, packet),
+      )
       instance.monitoring = true
       instance.recvBuffer = Buffer.alloc(0)
 
@@ -114,6 +122,7 @@ export class HapMonitor extends EventEmitter {
         // Accumulate raw bytes. Decoding per-chunk would corrupt a multibyte
         // UTF-8 character that happens to be split across two TCP packets.
         const chunk = Buffer.isBuffer(data) ? data : Buffer.from(data)
+        this.debugPacket?.('received', instance, chunk)
         instance.recvBuffer = instance.recvBuffer?.length
           ? Buffer.concat([instance.recvBuffer, chunk])
           : chunk
@@ -223,7 +232,9 @@ export class HapMonitor extends EventEmitter {
           this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
             + `Got Event: ${JSON.stringify(body.characteristics)}`)
 
-          const response = body.characteristics.map((c) => {
+          const response = new Set<ServiceType>()
+          const statusActiveServices = new Set<ServiceType>()
+          for (const c of body.characteristics) {
             // find the matching service for each characteristic
             const services = this.services.filter(x => x.aid === c.aid && x.instance.username === instance.username)
             const service = services.find(x => x.serviceCharacteristics.find(y => y.iid === c.iid))
@@ -232,17 +243,47 @@ export class HapMonitor extends EventEmitter {
               // find the correct characteristic and update it
               const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid)
               if (characteristic) {
+                // Receiving an event is a successful read from the accessory;
+                // clear any HAP error cached by an earlier getValue() call.
+                characteristic.status = 0
                 characteristic.value = c.value
                 service.values[characteristic.type] = c.value
-                return service
+                response.add(service)
+                if (characteristic.type === 'StatusActive') {
+                  statusActiveServices.add(service)
+                }
               }
             }
+          }
 
-            return undefined
-          })
-
-          // push update to listeners
-          this.emit('service-update', response.filter(x => x))
+          // A single event can update several characteristics on the same
+          // service. Emit each affected service once, after all its values have
+          // been applied.
+          const emitUpdate = () => this.emit('service-update', [...response])
+          if (statusActiveServices.size) {
+            // StatusActive is the accessory's signal that the service's
+            // availability changed, but it does not carry the HAP status of
+            // the service's other characteristics. Refresh those before the
+            // update is emitted so consumers do not receive stale statuses.
+            void Promise.all([...statusActiveServices].flatMap(service =>
+              service.serviceCharacteristics
+                .filter(characteristic => characteristic.type !== 'StatusActive'
+                  && characteristic.ev
+                  && characteristic.canRead
+                  && characteristic.getValue)
+                .map(async (characteristic) => {
+                  try {
+                    await characteristic.getValue()
+                  } catch {
+                    // getValue records a returned HAP error status on the
+                    // characteristic before rejecting. Preserve it and still
+                    // deliver the service update.
+                  }
+                }),
+            )).then(emitUpdate)
+          } else {
+            emitUpdate()
+          }
         }
       } catch {
         // do nothing

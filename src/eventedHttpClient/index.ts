@@ -10,13 +10,13 @@ import httpMessageParser from './httpParser.js'
 
 export const parseMessage = httpMessageParser
 
-export function createConnection(instance, pin: string, body) {
+export function createConnection(instance, pin: string, body, onPacket?: (packet: Buffer) => void) {
   const client = netCreateConnection({
     host: instance.ipAddress,
     port: instance.port,
   })
 
-  client.write(_buildMessage({
+  const message = _buildMessage({
     method: 'PUT',
     url: `http://${instance.ipAddress}:${instance.port}/characteristics`,
     maxAttempts: 1, // (default) try 5 times
@@ -26,7 +26,9 @@ export function createConnection(instance, pin: string, body) {
       'connection': 'keep-alive',
     },
     body: JSON.stringify(body),
-  }))
+  })
+  onPacket?.(Buffer.from(message))
+  client.write(message)
 
   return client
 }

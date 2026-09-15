@@ -63,7 +63,8 @@ export interface HapCharacteristicRespType {
   characteristics: {
     aid: number
     iid: number
-    value: number | string | boolean
+    value?: number | string | boolean
+    status?: number
   }[]
 }
 
@@ -94,6 +95,8 @@ export interface ServiceType {
 }
 
 export interface CharacteristicType {
+  /** Last HAP read status: zero indicates success; nonzero marks the cached value as unavailable. */
+  status?: number
   aid: number
   iid: number
   uuid: string
