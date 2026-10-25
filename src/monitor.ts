@@ -75,7 +75,9 @@ export class HapMonitor extends EventEmitter {
     this.logger = logger
     this.debug = debug
     this.debugPacket = debugPacket
-    this.pinFor = typeof pin === 'function' ? pin : () => pin
+    this.pinFor = typeof pin === 'function'
+      ? pin
+      : () => pin
     this.services = services
     this.evInstances = [] as HapEvInstance[]
 
@@ -121,7 +123,9 @@ export class HapMonitor extends EventEmitter {
       instance.socket.on('data', (data) => {
         // Accumulate raw bytes. Decoding per-chunk would corrupt a multibyte
         // UTF-8 character that happens to be split across two TCP packets.
-        const chunk = Buffer.isBuffer(data) ? data : Buffer.from(data)
+        const chunk = Buffer.isBuffer(data)
+          ? data
+          : Buffer.from(data)
         this.debugPacket?.('received', instance, chunk)
         instance.recvBuffer = instance.recvBuffer?.length
           ? Buffer.concat([instance.recvBuffer, chunk])

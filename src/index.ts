@@ -170,14 +170,25 @@ export class HapClient extends EventEmitter {
       return
     }
 
-    const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+    const body = typeof response.data === 'string'
+      ? response.data
+      : JSON.stringify(response.data)
     const incomingMessage = response.request?.res
     const status = incomingMessage?.statusCode ?? response.status
     const statusText = incomingMessage?.statusMessage ?? response.statusText
     const httpVersion = incomingMessage?.httpVersion ?? '1.1'
     const rawHeaders: string[] = incomingMessage?.rawHeaders ?? Object.entries(response.headers ?? {})
-      .flatMap(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : String(value)])
-    const statusLine = status ? `HTTP/${httpVersion} ${status}${statusText ? ` ${statusText}` : ''}\r\n` : ''
+      .flatMap(([name, value]) => [
+        name,
+        Array.isArray(value)
+          ? value.join(', ')
+          : String(value),
+      ])
+    const statusLine = status
+      ? `HTTP/${httpVersion} ${status}${statusText
+        ? ` ${statusText}`
+        : ''}\r\n`
+      : ''
     const headers = rawHeaders.length
       ? `${Array.from({ length: rawHeaders.length / 2 }, (_, index) => `${rawHeaders[index * 2]}: ${rawHeaders[index * 2 + 1]}`).join('\r\n')}\r\n`
       : ''
@@ -366,14 +377,19 @@ export class HapClient extends EventEmitter {
       // services reach us with no addresses at all and would be dropped without
       // ever being probed (#40). Resolving the hostname recovers them, since the
       // system resolver caches records across packets correctly.
-      let addresses: string[] = Array.isArray(device.addresses) ? device.addresses : []
+      let addresses: string[] = Array.isArray(device.addresses)
+        ? device.addresses
+        : []
       if (!addresses.some(ip => IPV4_REGEX.test(ip)) && device.host) {
         try {
           const resolved = await lookup(device.host, { all: true, family: 4 })
           const resolvedAddresses = resolved.map(entry => entry.address)
           this.debug(`[HapClient] Discovery :: No usable address for ${instance.username}, `
             + `resolved ${device.host} to ${resolvedAddresses.join(', ') || 'nothing'}`)
-          addresses = [...addresses, ...resolvedAddresses]
+          addresses = [
+            ...addresses,
+            ...resolvedAddresses,
+          ]
         } catch (e) {
           this.debug(`[HapClient] Discovery :: Could not resolve host ${device.host} `
             + `for ${instance.username}: ${e.message}`)
@@ -457,7 +473,9 @@ export class HapClient extends EventEmitter {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          characteristics: [{ aid: -1, iid: -1 }],
+          characteristics: [
+            { aid: -1, iid: -1 },
+          ],
         }),
       })
       // A working connection clears the pin complaint, so a mismatch that comes
@@ -528,7 +546,9 @@ export class HapClient extends EventEmitter {
     // this.instances, which shifts the next one into its index and makes the
     // for..of iterator step over it - so the bridge immediately after an evicted
     // one silently contributed nothing to this call.
-    for (const instance of only ? [only] : [...this.instances]) {
+    for (const instance of only
+      ? [only]
+      : [...this.instances]) {
       try {
         const resp: HapAccessoriesRespType = await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/accessories`)
         instance.connectionFailedCount = 0
@@ -655,7 +675,9 @@ export class HapClient extends EventEmitter {
             uuid: s.type,
             type: Services[s.type],
             humanType: this.humanizeString(Services[s.type]),
-            serviceName: (serviceName.value.toString().length ? serviceName.value.toString() : accessoryInformation.Name),
+            serviceName: (serviceName.value.toString().length
+              ? serviceName.value.toString()
+              : accessoryInformation.Name),
             serviceCharacteristics,
             accessoryInformation,
             values: {},
@@ -670,7 +692,13 @@ export class HapClient extends EventEmitter {
 
           // generate a stable name-based unique id that remains consistent even if the accessory aid changes
           service.nameBasedUniqueId = createHash('sha256')
-            .update([service.instance.name, service.instance.username, service.accessoryInformation.Manufacturer, service.serviceName, service.uuid.slice(0, 8)].join('|'))
+            .update([
+              service.instance.name,
+              service.instance.username,
+              service.accessoryInformation.Manufacturer,
+              service.serviceName,
+              service.uuid.slice(0, 8),
+            ].join('|'))
             .digest('hex')
 
           /* Helper function to trigger a call to the accessory to get all the characteristic values */

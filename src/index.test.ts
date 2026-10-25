@@ -15,7 +15,9 @@ function fetchResponse(
   statusText = 'OK',
   headers: Record<string, string> = {},
 ) {
-  const body = typeof data === 'string' ? data : JSON.stringify(data)
+  const body = typeof data === 'string'
+    ? data
+    : JSON.stringify(data)
 
   return {
     ok: status >= 200 && status < 300,
@@ -36,7 +38,9 @@ beforeEach(() => {
   mockFetch.mockReset()
 })
 
-vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn(),
+}))
 
 let mockBrowserOn: ReturnType<typeof vi.fn>
 let mockBrowserRemoveAllListeners: ReturnType<typeof vi.fn>
@@ -126,7 +130,10 @@ describe('hapClient bonjour up handler - same-port restart', () => {
   let upHandler: (device: any) => Promise<void>
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
     hapClient.startDiscovery()
 
     // Extract the 'up' handler registered on the browser
@@ -184,8 +191,14 @@ describe('hapClient bonjour up handler - same-port restart', () => {
       isInstanceMonitored: vi.fn(),
       finish: vi.fn(),
     }
-    const ours = { instance: { username }, aid: 1 }
-    const theirs = { instance: { username: 'AA:BB:CC:DD:EE:FF' }, aid: 1 }
+    const ours = {
+      instance: { username },
+      aid: 1,
+    }
+    const theirs = {
+      instance: { username: 'AA:BB:CC:DD:EE:FF' },
+      aid: 1,
+    }
     ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([ours, theirs])
     mockFetch.mockResolvedValueOnce(fetchResponse({ accessories: [] }))
     mockFetch.mockResolvedValueOnce(fetchResponse({}))
@@ -204,15 +217,17 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
   it('refreshes a bridge\'s services in the monitor when its configuration number changes', async () => {
     const username = 'AA:BB:CC:DD:EE:FF'
-    ;(hapClient as any).instances = [{
-      name: 'Test Bridge',
-      username,
-      ipAddress: '127.0.0.1',
-      port: 51826,
-      services: [],
-      connectionFailedCount: 0,
-      configurationNumber: 1,
-    }]
+    ;(hapClient as any).instances = [
+      {
+        name: 'Test Bridge',
+        username,
+        ipAddress: '127.0.0.1',
+        port: 51826,
+        services: [],
+        connectionFailedCount: 0,
+        configurationNumber: 1,
+      },
+    ]
     const updateInstance = vi.fn()
     const refreshMonitorConnection = vi.fn()
     ;(hapClient as any).hapMonitor = {
@@ -222,7 +237,12 @@ describe('hapClient bonjour up handler - same-port restart', () => {
       isInstanceMonitored: vi.fn().mockReturnValue(true),
       finish: vi.fn(),
     }
-    ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([{ instance: { username }, aid: 1 }])
+    ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([
+      {
+        instance: { username },
+        aid: 1,
+      },
+    ])
 
     await upHandler({
       txt: { 'c#': 2, 'id': username, 'md': 'Test Bridge' },
@@ -271,7 +291,13 @@ describe('hapClient bonjour up handler - missing id', () => {
   let upHandler: (device: any) => Promise<void>
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false, instanceBlacklist: ['ZZ:ZZ:ZZ:ZZ:ZZ:ZZ'] } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: {
+        autoStartDiscovery: false,
+        instanceBlacklist: ['ZZ:ZZ:ZZ:ZZ:ZZ:ZZ'],
+      },
+    })
     hapClient.startDiscovery()
 
     const upCall = mockBrowserOn.mock.calls.find(([event]) => event === 'up')
@@ -311,7 +337,10 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
   let upHandler: (device: any) => Promise<void>
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
     hapClient.startDiscovery()
 
     const upCall = mockBrowserOn.mock.calls.find(([event]) => event === 'up')
@@ -327,8 +356,14 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
     // When several bridges share a hostname, the mDNS responder suppresses the
     // repeated A records, so bonjour-service hands us an empty addresses array.
     // Without the hostname fallback the bridge is dropped without being probed.
-    vi.mocked(lookup).mockResolvedValue([{ address: '192.168.1.50', family: 4 }] as any)
-    mockFetch.mockResolvedValue(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
+    vi.mocked(lookup).mockResolvedValue([
+      { address: '192.168.1.50', family: 4 },
+    ] as any)
+    mockFetch.mockResolvedValue(fetchResponse({
+      accessories: [
+        { aid: 1, services: [] },
+      ],
+    }))
 
     await upHandler({
       txt: { 'c#': 1, 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'Shared Host Bridge' },
@@ -346,7 +381,11 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
   })
 
   it('does not resolve the hostname when a usable address is already supplied', async () => {
-    mockFetch.mockResolvedValue(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
+    mockFetch.mockResolvedValue(fetchResponse({
+      accessories: [
+        { aid: 1, services: [] },
+      ],
+    }))
 
     await upHandler({
       txt: { 'c#': 1, 'id': 'BB:CC:DD:EE:FF:AA', 'md': 'Normal Bridge' },
@@ -389,7 +428,11 @@ describe('hapClient bonjour up handler - empty addresses (#40)', () => {
     // working sibling address was never tried.
     mockFetch
       .mockResolvedValueOnce(fetchResponse({}))
-      .mockResolvedValueOnce(fetchResponse({ accessories: [{ aid: 1, services: [] }] }))
+      .mockResolvedValueOnce(fetchResponse({
+        accessories: [
+          { aid: 1, services: [] },
+        ],
+      }))
       .mockResolvedValue(fetchResponse({}))
 
     await upHandler({
@@ -418,7 +461,10 @@ describe('hapClient getAccessories - failing instance removal', () => {
   let hapClient: HapClient
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
   })
 
   afterEach(() => {
@@ -500,7 +546,11 @@ describe('hapClient getAccessories - failing instance removal', () => {
       if (url.includes('1.1.1.1')) {
         throw new Error('connection refused')
       }
-      return fetchResponse({ accessories: [{ aid: 1, services: [] }] })
+      return fetchResponse({
+        accessories: [
+          { aid: 1, services: [] },
+        ],
+      })
     })
 
     const accessories = await (hapClient as any).getAccessories()
@@ -518,7 +568,10 @@ describe('hapClient resetInstancePool - stale discovery timeout', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
   })
 
   afterEach(() => {
@@ -581,7 +634,10 @@ describe('hapClient getAllServices - null Name characteristic value', () => {
   let hapClient: HapClient
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
   })
 
   afterEach(() => {
@@ -694,7 +750,10 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   }
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
   })
 
   afterEach(() => {
@@ -751,14 +810,22 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(service.serviceCharacteristics[1]).toMatchObject({ value: false, status: 0 })
     expect(service.values.Other).toBe(false)
     expect(errorSpy).not.toHaveBeenCalled()
-    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: false }] }))
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 1, iid: 10, value: false },
+      ],
+    }))
     await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false, status: 0 })
   })
 
   it('does not request write-only characteristics or send empty requests', async () => {
     const service = buildService() as any
     service.serviceCharacteristics.push({ ...service.serviceCharacteristics[0], iid: 11, canRead: false })
-    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: true }] }))
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 1, iid: 10, value: true },
+      ],
+    }))
     await hapClient.refreshServiceCharacteristics(service)
     expect(mockFetch.mock.calls.at(-1)?.[0]).toEqual(
       expect.stringContaining('/characteristics?id=1.10'),
@@ -776,7 +843,12 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     const errorSpy = vi.fn()
     const localClient = new HapClient({
       pin: '123-45-678',
-      logger: { error: errorSpy, warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+      logger: {
+        error: errorSpy,
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
 
@@ -796,7 +868,11 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
   it('getCharacteristic should reject and preserve cached values on a status error', async () => {
     const service = buildService() as any
 
-    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, status: -70402 }] }))
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 1, iid: 10, status: -70402 },
+      ],
+    }))
 
     await expect(hapClient.getCharacteristic(service, 10)).rejects.toThrow('Characteristic 1.10 returned HAP status -70402')
 
@@ -841,7 +917,16 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
 
   it.each([0, undefined])('should accept successful reads with status %s', async (status) => {
     const service = buildService() as any
-    mockFetch.mockResolvedValue(fetchResponse({ characteristics: [{ aid: 1, iid: 10, value: false, status }] }))
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        {
+          aid: 1,
+          iid: 10,
+          value: false,
+          status,
+        },
+      ],
+    }))
 
     await expect(hapClient.getCharacteristic(service, 10)).resolves.toMatchObject({ value: false })
     await expect(hapClient.refreshServiceCharacteristics(service)).resolves.toBe(service)
@@ -852,7 +937,13 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     const debugSpy = vi.fn()
     const localClient = new HapClient({
       pin: '123-45-678',
-      logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), log: vi.fn(), debug: debugSpy },
+      logger: {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        log: vi.fn(),
+        debug: debugSpy,
+      },
       config: { autoStartDiscovery: false, debug: true },
     })
     localClient.startDiscovery()
@@ -919,7 +1010,10 @@ describe('hapClient monitorCharacteristics - replacing existing monitor', () => 
   let hapClient: HapClient
 
   beforeEach(() => {
-    hapClient = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
   })
 
   afterEach(() => {
@@ -991,7 +1085,10 @@ describe('hapClient per-bridge pins (#2936)', () => {
   })
 
   it('still works when no per-bridge pins are given at all', () => {
-    const client = new HapClient({ pin: '123-45-678', config: { autoStartDiscovery: false } })
+    const client = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
 
     expect((client as any).pinFor(instance('0E:AA:BB:CC:DD:EE'))).toBe('123-45-678')
   })
@@ -1024,7 +1121,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))
@@ -1046,7 +1148,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     mockFetch.mockResolvedValue(fetchResponse({}, 470, ''))
@@ -1068,7 +1175,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const client = new HapClient({
       pin: '123-45-678',
       ownUsernames: ['0e:aa:bb:cc:dd:ee'],
-      logger: { warn, debug, info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug,
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false, debug: true },
     })
     mockFetch.mockResolvedValueOnce(fetchResponse({ status: -70401 }, 470, 'Unknown'))
@@ -1084,7 +1196,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const client = new HapClient({
       pin: '123-45-678',
       ownUsernames: ['0e:aa:bb:cc:dd:ee'],
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     mockFetch.mockResolvedValueOnce(fetchResponse({ status: -70401 }, 470, 'Unknown'))
@@ -1098,7 +1215,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     const refused = () => fetchResponse({ status: -70401 }, 470, 'Unknown')
@@ -1119,7 +1241,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     const target = instance('0E:AA:BB:CC:DD:EE')
@@ -1144,7 +1271,12 @@ describe('hapClient per-bridge pins (#2936)', () => {
     const warn = vi.fn()
     const client = new HapClient({
       pin: '123-45-678',
-      logger: { warn, debug: vi.fn(), info: vi.fn(), error: vi.fn() },
+      logger: {
+        warn,
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      },
       config: { autoStartDiscovery: false },
     })
     mockFetch.mockResolvedValueOnce(fetchResponse({}, 470, ''))

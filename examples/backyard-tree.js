@@ -44,7 +44,9 @@ client.once('discovery-ended', async () => {
     const accessoryServices = services.filter(service => service.accessoryInformation?.Name === accessoryName)
 
     if (!accessoryServices.length) {
-      const names = [...new Set(services.map(service => service.accessoryInformation?.Name).filter(Boolean))]
+      const names = [
+        ...new Set(services.map(service => service.accessoryInformation?.Name).filter(Boolean)),
+      ]
       throw new Error(`Accessory ${JSON.stringify(accessoryName)} was not found. Discovered: ${names.join(', ') || 'none'}`)
     }
 

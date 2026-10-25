@@ -76,7 +76,9 @@ describe('hapMonitor', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
-    const services = [buildService(username)]
+    const services = [
+      buildService(username),
+    ]
     monitor = new HapMonitor(null, vi.fn(), '031-45-154', services)
   })
 
@@ -138,7 +140,9 @@ describe('hapMonitor', () => {
     it('should call logger.error rather than logger.log when error() is invoked', () => {
       const logSpy = vi.fn()
       const errorSpy = vi.fn()
-      const services = [buildService('CC:CC:CC:CC:CC:CC')]
+      const services = [
+        buildService('CC:CC:CC:CC:CC:CC'),
+      ]
       const m = new HapMonitor({ log: logSpy, error: errorSpy }, vi.fn(), '031-45-154', services)
 
       m.error('boom')
@@ -155,7 +159,9 @@ describe('hapMonitor', () => {
   describe('raw packet logging', () => {
     it('reports sent and received packets without converting the buffers to text', () => {
       const debugPacket = vi.fn()
-      const services = [buildService('DD:DD:DD:DD:DD:DD')]
+      const services = [
+        buildService('DD:DD:DD:DD:DD:DD'),
+      ]
       const m = new HapMonitor(null, vi.fn(), '031-45-154', services, debugPacket)
       const instance = (m as any).evInstances[0]
       const onSentPacket = vi.mocked(createConnection).mock.calls.at(-1)?.[3]
@@ -201,7 +207,9 @@ describe('hapMonitor updateInstance - bridges that appear after the monitor star
 
   beforeEach(() => {
     vi.clearAllMocks()
-    monitor = new HapMonitor(null, vi.fn(), '031-45-154', [buildService(first)])
+    monitor = new HapMonitor(null, vi.fn(), '031-45-154', [
+      buildService(first),
+    ])
   })
 
   afterEach(() => {
@@ -215,7 +223,11 @@ describe('hapMonitor updateInstance - bridges that appear after the monitor star
 
     expect(monitor.isInstanceMonitored(late)).toBe(true)
     expect(createConnection).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({ characteristics: [{ aid: 1, iid: 2, ev: true }] })
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({
+      characteristics: [
+        { aid: 1, iid: 2, ev: true },
+      ],
+    })
   })
 
   it('routes an event from the late bridge to service-update', () => {
@@ -226,7 +238,11 @@ describe('hapMonitor updateInstance - bridges that appear after the monitor star
     vi.mocked(parseMessage).mockReturnValueOnce({
       protocol: 'EVENT',
       statusCode: 200,
-      body: JSON.stringify({ characteristics: [{ aid: 1, iid: 2, value: true }] }),
+      body: JSON.stringify({
+        characteristics: [
+          { aid: 1, iid: 2, value: true },
+        ],
+      }),
     } as any)
     const evInstance = (monitor as any).evInstances.find((x: any) => x.username === late)
 
@@ -244,7 +260,11 @@ describe('hapMonitor updateInstance - bridges that appear after the monitor star
     monitor.updateInstance(changed.instance as any, [changed])
 
     expect(createConnection).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({ characteristics: [{ aid: 1, iid: 9, ev: true }] })
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({
+      characteristics: [
+        { aid: 1, iid: 9, ev: true },
+      ],
+    })
     expect((monitor as any).evInstances).toHaveLength(1)
   })
 
@@ -312,7 +332,10 @@ describe('findMessageBoundary', () => {
     // buffer here would swallow that EVENT.
     const ack = 'HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n'
     const event = build('{"characteristics":[{"aid":1,"iid":2,"value":true}]}')
-    const combined = Buffer.concat([Buffer.from(ack, 'utf8'), event])
+    const combined = Buffer.concat([
+      Buffer.from(ack, 'utf8'),
+      event,
+    ])
 
     const boundary = findMessageBoundary(combined)
     expect(boundary).toBe(Buffer.byteLength(ack, 'utf8'))
@@ -338,7 +361,9 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
     // monitor splits and dispatches multi-message TCP chunks.
     vi.mocked(parseMessage).mockImplementation((msg: any) => realHttpParser(msg))
 
-    const services = [buildService(username)]
+    const services = [
+      buildService(username),
+    ]
     monitor = new HapMonitor(null, vi.fn(), '031-45-154', services)
   })
 
@@ -349,7 +374,11 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
   })
 
   function buildEvent(value: boolean): string {
-    const body = JSON.stringify({ characteristics: [{ aid: 1, iid: 2, value }] })
+    const body = JSON.stringify({
+      characteristics: [
+        { aid: 1, iid: 2, value },
+      ],
+    })
     return [
       'EVENT/1.0 200 OK',
       'Content-Type: application/hap+json',
