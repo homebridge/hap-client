@@ -115,7 +115,9 @@ function httpMessageParser(message) {
    */
   (function () {
     let start = headerNewlineIndex
-    let end = (result.headers && result.headers['Content-Length'] ? result.headers['Content-Length'] + start : messageString.length)
+    let end = (result.headers && result.headers['Content-Length']
+      ? result.headers['Content-Length'] + start
+      : messageString.length)
     const firstBoundaryIndex = messageString.indexOf(fullBoundary)
 
     if (firstBoundaryIndex > -1 && result.boundary) {
@@ -291,7 +293,9 @@ httpMessageParser._parseHeaders = function _parseHeaders(body) {
       const key = match[1]
       const value = match[2]
 
-      headers[key] = httpMessageParser._isNumeric(value) ? Number(value) : value
+      headers[key] = httpMessageParser._isNumeric(value)
+        ? Number(value)
+        : value
     }
   })
 

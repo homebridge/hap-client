@@ -11,10 +11,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - feat: take the list of our own bridges, so another homebridge's refused pin logs at debug, not warn
 - fix: add a bridge that registers after the monitor started to it, so it gets live updates too
 - chore: run the type generator with tsx instead of ts-node
+- chore(deps): dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.2.3`
+- `@homebridge/hap-nodejs` @ `v2.2.4-beta`
 
 ## v5.3.0 (2026-08-31)
 
