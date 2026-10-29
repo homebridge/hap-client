@@ -1004,6 +1004,25 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     // which sends `PUT /characteristics { characteristics: [] }` to HAP.
     expect(putSpy).not.toHaveBeenCalled()
   })
+
+  it('setCharacteristic should resolve when HAP returns 204 No Content for the write', async () => {
+    const service = buildService() as any
+
+    mockFetch
+      .mockResolvedValueOnce(fetchResponse('', 204, 'No Content'))
+      .mockResolvedValueOnce(fetchResponse({
+        characteristics: [
+          { aid: 1, iid: 10, value: false },
+        ],
+      }))
+
+    const characteristic = await hapClient.setCharacteristic(service, 10, false)
+
+    // A successful HAP write responds with an empty 204. Parsing that body as
+    // JSON threw, so the caller treated a successful write as a failure.
+    expect(characteristic.value).toBe(false)
+    expect(service.values.On).toBe(false)
+  })
 })
 
 describe('hapClient monitorCharacteristics - replacing existing monitor', () => {
