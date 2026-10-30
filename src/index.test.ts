@@ -561,6 +561,26 @@ describe('hapClient getAccessories - failing instance removal', () => {
     expect(accessories.length).toBe(1)
     expect(accessories[0].instance).toBe(nextInLine)
   })
+
+  it.each([204, 200])('removes an instance after repeated empty %s accessories responses', async (status) => {
+    const instance = {
+      name: 'Empty Response Bridge',
+      username: 'AA:AA:AA:AA:AA:AA',
+      ipAddress: '1.1.1.1',
+      port: 80,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [instance]
+    mockFetch.mockResolvedValue(fetchResponse('', status))
+
+    for (let i = 0; i < 6; i++) {
+      await (hapClient as any).getAccessories()
+    }
+
+    expect((hapClient as any).instances).not.toContain(instance)
+  })
 })
 
 describe('hapClient resetInstancePool - stale discovery timeout', () => {
