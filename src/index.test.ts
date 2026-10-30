@@ -1005,11 +1005,11 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(putSpy).not.toHaveBeenCalled()
   })
 
-  it('setCharacteristic should resolve when HAP returns 204 No Content for the write', async () => {
+  it.each([204, 200])('setCharacteristic should resolve when HAP returns an empty %s write response', async (status) => {
     const service = buildService() as any
 
     mockFetch
-      .mockResolvedValueOnce(fetchResponse('', 204, 'No Content'))
+      .mockResolvedValueOnce(fetchResponse('', status))
       .mockResolvedValueOnce(fetchResponse({
         characteristics: [
           { aid: 1, iid: 10, value: false },
