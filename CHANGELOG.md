@@ -7,14 +7,13 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Breaking Changes
 
 - Retired the usage of axios for making HTTP requests. Now uses fetch instead.
-- `getCharacteristic()` and `refreshServiceCharacteristics()` now throw a `HapCharacteristicError` (check `error.name`) when a bridge returns a nonzero HAP status. Before, they only logged it.
-- `getCharacteristic()` and `refreshServiceCharacteristics()` now set `status` on each characteristic they read, and leave `value` at its last good reading when `status` is nonzero. A monitor event resets `status` to 0. Before, there was no `status`, so a stale `value` looked current.
+- `getCharacteristic()` and `refreshServiceCharacteristics()` now set `status` on each characteristic and throw a `HapCharacteristicError` (check `error.name`) when it is nonzero, leaving `value` at its last good reading. Before, they only logged the error, so a stale `value` looked current.
 
 ### Changed
 
 - feat: `debugRawPackets` option (with `debug: true`) logs raw event-monitor packets and `getValue()` exchanges. They can contain the bridge PIN
 - feat: when a service's `StatusActive` changes, refresh its other characteristics before emitting `service-update`
-- fix: reject empty read responses while accepting empty PUT responses (#95)
+- fix: `setCharacteristic()` and `setCharacteristics()` treat an empty (204) reply from the bridge as success again. Since the switch to fetch they had thrown `Failed to control accessory` even though the write worked (#95)
 - fix: remember a refused pin on the client, so an unregistered bridge is named once, not every cycle
 - feat: take the list of our own bridges, so another homebridge's refused pin logs at debug, not warn
 - fix: add a bridge that registers after the monitor started to it, so it gets live updates too
