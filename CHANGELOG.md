@@ -21,10 +21,6 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: run the type generator with tsx instead of ts-node
 - chore(deps): dependency updates
 
-### Homebridge Dependencies
-
-- `@homebridge/hap-nodejs` @ `v2.2.4-beta.6` (dev dependency, used only to generate the HAP types)
-
 ## v5.3.0 (2026-08-31)
 
 ### Changed
