@@ -6,17 +6,12 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Breaking Changes
 
-- HTTP calls now use Node's built-in `fetch` instead of axios, so errors are no longer `AxiosError`s. Code that checks `isAxiosError`, `error.code` (`ECONNREFUSED`, `ECONNABORTED`) or `error.response.data`/`headers` must change:
-  - An HTTP error status throws a plain `Error` (`HTTP 500 Internal Server Error`). Its `error.response` holds only `status`.
-  - A network failure throws `TypeError: fetch failed`, with the socket error in `error.cause`.
-  - The 10-second discovery probe times out with a `TimeoutError`.
-  - `setCharacteristic()` still wraps failures as `Failed to control accessory: …`, but the text after the colon changes.
+- Retired the usage of axios for making HTTP requests. Now uses fetch instead.
 - `getCharacteristic()` and `refreshCharacteristics()` now throw a `HapCharacteristicError` (check `error.name`) when a bridge returns a nonzero HAP status. Before, they only logged it.
-- A characteristic's `value` is now optional, and it carries a `status` field. A nonzero `status` is the HAP error a read returned, and `value` is then unavailable. Check `status` before using `value`.
+- Characteristics now carry a `status` field (check it before `value`), and `value` is left unset when a bridge returns a nonzero HAP status. Before, `value` was always present.
 
 ### Changed
 
-- feat: replace axios with fetch and report characteristic errors
 - feat: `debugRawPackets` option (with `debug: true`) logs raw event-monitor packets and `getValue()` exchanges. They can contain the bridge PIN
 - feat: when a service's `StatusActive` changes, refresh its other characteristics before emitting `service-update`
 - fix: reject empty read responses while accepting empty PUT responses (#95)
