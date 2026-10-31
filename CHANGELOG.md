@@ -2,21 +2,28 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v5.4.0 (pending)
+## v5.4.0 (2026-10-31)
+
+### Breaking Changes
+
+- A characteristic's `value` is now optional, and it carries a `status` field. A nonzero `status` is the HAP error a read returned, and `value` is then unavailable. Check `status` before using `value`.
 
 ### Changed
 
 - feat!: replace axios with fetch and report characteristic errors
-- fix: reject empty read responses while accepting empty PUT responses
+- feat: `debugRawPackets` option (with `debug: true`) logs raw event-monitor packets and `getValue()` exchanges. They can contain the bridge PIN
+- feat: when a service's `StatusActive` changes, refresh its other characteristics before emitting `service-update`
+- fix: reject empty read responses while accepting empty PUT responses (#95)
 - fix: remember a refused pin on the client, so an unregistered bridge is named once, not every cycle
 - feat: take the list of our own bridges, so another homebridge's refused pin logs at debug, not warn
 - fix: add a bridge that registers after the monitor started to it, so it gets live updates too
+- chore: remove the unused `axios` dependency
 - chore: run the type generator with tsx instead of ts-node
 - chore(deps): dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.2.4-beta`
+- `@homebridge/hap-nodejs` @ `v2.2.4-beta.6` (dev dependency, used only to generate the HAP types)
 
 ## v5.3.0 (2026-08-31)
 
