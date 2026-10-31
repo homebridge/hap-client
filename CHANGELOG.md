@@ -20,6 +20,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: run the type generator with tsx instead of ts-node
 - chore(deps): dependency updates
 - chore: prepare v5.4.0 changelog and drop unused axios
+- fix: restore 5.3.0 behaviour for getResource errors and failed monitor syncs
 
 ## v5.3.0 (2026-08-31)
 
