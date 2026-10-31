@@ -254,6 +254,41 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     expect(refreshMonitorConnection).not.toHaveBeenCalled()
   })
 
+  // A bridge whose configuration changed has usually just restarted, so the
+  // read can fail. That must not be taken as "no services" and drop the bridge.
+  it('reconnects the existing subscriptions when the read after a configuration change fails', async () => {
+    const username = 'AA:BB:CC:DD:EE:FF'
+    const existingInstance = {
+      name: 'Test Bridge',
+      username,
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [existingInstance]
+    const updateInstance = vi.fn()
+    const refreshMonitorConnection = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      updateInstance,
+      refreshMonitorConnection,
+      isInstanceConnected: vi.fn().mockReturnValue(true),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      finish: vi.fn(),
+    }
+    mockFetch.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    await upHandler({
+      txt: { 'c#': 2, 'id': username, 'md': 'Test Bridge' },
+      port: 51826,
+      addresses: [],
+    })
+
+    await vi.waitFor(() => expect(refreshMonitorConnection).toHaveBeenCalledWith(existingInstance))
+    expect(updateInstance).not.toHaveBeenCalled()
+  })
+
   it('should not call refreshMonitorConnection when socket is still alive for an unchanged instance', async () => {
     const username = 'AA:BB:CC:DD:EE:FF'
 
@@ -1023,6 +1058,31 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     // Without the guard the function called setCharacteristics with `[]`,
     // which sends `PUT /characteristics { characteristics: [] }` to HAP.
     expect(putSpy).not.toHaveBeenCalled()
+  })
+
+  it('getResource returns the body on success', async () => {
+    const service = buildService() as any
+    mockFetch.mockResolvedValueOnce(fetchResponse('jpeg'))
+
+    const data = await hapClient.getResource(service, { 'resource-type': 'image', 'image-width': 640, 'image-height': 360 } as any)
+
+    expect(Buffer.from(data).toString()).toBe('jpeg')
+  })
+
+  // Under axios an HTTP error status rejected; fetch resolves, and getResource
+  // returned undefined without naming a refused pin.
+  it.each([470, 401])('getResource rejects and names the pin when HAP returns %s', async (status) => {
+    const service = buildService() as any
+    mockFetch.mockResolvedValueOnce(fetchResponse('', status, 'Unauthorized'))
+
+    await expect(hapClient.getResource(service, {} as any)).rejects.toThrow('Make sure the Homebridge pin')
+  })
+
+  it('getResource rejects on any other HTTP error status', async () => {
+    const service = buildService() as any
+    mockFetch.mockResolvedValueOnce(fetchResponse('', 500, 'Internal Server Error'))
+
+    await expect(hapClient.getResource(service, {} as any)).rejects.toThrow('Failed to request resource: HTTP 500 Internal Server Error')
   })
 
   it.each([204, 200])('setCharacteristic should resolve when HAP returns an empty %s write response', async (status) => {

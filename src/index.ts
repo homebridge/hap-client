@@ -538,6 +538,16 @@ export class HapClient extends EventEmitter {
     }
     try {
       const services = await this.getAllServices(instance)
+      // getAccessories() swallows a failed read and returns nothing, which
+      // updateInstance() would take as "no services" and drop the bridge. A
+      // bridge whose configuration just changed has usually just restarted, so
+      // a failed read is likely here: reconnect the existing subscriptions
+      // instead, as before this sync existed, and leave the rest to the next
+      // configuration change.
+      if (instance.connectionFailedCount > 0) {
+        this.hapMonitor.refreshMonitorConnection(instance)
+        return
+      }
       this.hapMonitor.updateInstance(instance, services.filter(x => x.instance.username === instance.username))
     } catch (e) {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Could not add the bridge to the monitor: ${e?.message ?? e}`)
@@ -962,6 +972,13 @@ export class HapClient extends EventEmitter {
           aid: service.aid,
         }),
       })
+      // fetch resolves on an HTTP error status, where axios rejected. Reject
+      // here too, so the catch below can still name a refused pin.
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+          ; (error as any).response = { status: response.status }
+        throw error
+      }
       const resp: any = {
         status: response.status,
         data: Buffer.from(await response.arrayBuffer()),
