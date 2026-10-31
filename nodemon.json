@@ -1,0 +1,13 @@
+{
+  "watch": [
+    "src",
+    "examples/backyard-tree.js"
+  ],
+  "ext": "ts,js,json",
+  "ignore": [
+    "dist/**",
+    "node_modules/**"
+  ],
+  "exec": "npm run build && node examples/backyard-tree.js",
+  "signal": "SIGTERM"
+}

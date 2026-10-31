@@ -1,9 +1,9 @@
 /* global NodeJS */
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
 
-import axios from 'axios'
 import Bonjour from 'bonjour-service'
 import decamelize from 'decamelize'
 import { titleize } from 'inflection'
@@ -14,6 +14,13 @@ import { HapMonitor } from './monitor.js'
 import { toLongFormUUID } from './uuid.js'
 
 export * from './interfaces.js'
+
+class HapCharacteristicError extends Error {
+  constructor(characteristic: HapCharacteristicRespType['characteristics'][number]) {
+    super(`Characteristic ${characteristic.aid}.${characteristic.iid} returned HAP status ${characteristic.status}`)
+    this.name = 'HapCharacteristicError'
+  }
+}
 
 /**
  * Whether a discovered HAP device is one of Homebridge's own bridges.
@@ -31,7 +38,12 @@ const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
 export interface Config {
   debug?: boolean
+  /** Log raw HAP TCP packets as plain text. May expose sensitive data such as the bridge PIN. */
+  debugRawPackets?: boolean
+  /** @deprecated Use instanceDenyList instead. This will be removed in a future release. */
   instanceBlacklist?: string[]
+  instanceDenyList?: string[]
+  instanceAllowList?: string[]
   discoveryTimeout?: number
   autoStartDiscovery?: boolean
 }
@@ -47,7 +59,21 @@ export class HapClient extends EventEmitter {
   private readonly logger: any
   private readonly pin: string
   private readonly pins: Record<string, string> = {}
+  /**
+   * Bridges already told off for refusing the pin, by normalised username.
+   *
+   * Kept on the client, not the instance: a bridge that refuses the pin is
+   * never registered, so a flag on the instance object died with it and the
+   * warning came back on every discovery cycle - which is exactly what the
+   * owner of a second Homebridge install on the same network was seeing
+   * (homebridge-config-ui-x#2979). Cleared when the bridge accepts the pin
+   * again, so a mismatch that returns is reported afresh.
+   */
+  private readonly pinRefusals = new Set<string>()
+  /** See the constructor's `ownUsernames`; undefined means every Homebridge bridge is ours. */
+  private readonly ownUsernames?: Set<string>
   private readonly debugEnabled: boolean = false
+  private readonly debugRawPacketsEnabled: boolean = false
   private config: Config
 
   private instances: HapInstance[] = []
@@ -73,6 +99,18 @@ export class HapClient extends EventEmitter {
      * Anything not listed here falls back to `pin`.
      */
     pins?: Record<string, string>
+    /**
+     * The usernames (MACs) of the bridges that belong to THIS Homebridge - the
+     * main bridge and every child bridge in its config.
+     *
+     * Discovery probes every HAP bridge on the network, so it also finds other
+     * people's Homebridge installs, and those refuse this pin forever: their pin
+     * belongs to whoever runs them. When this list is given, a refusal from a
+     * bridge not on it is logged at debug rather than as a warning telling the
+     * owner to fix a pin that is not theirs (homebridge-config-ui-x#2979,
+     * #3001). Without the list every Homebridge bridge is treated as ours.
+     */
+    ownUsernames?: string[]
     logger?: any
     config: any
   }) {
@@ -81,8 +119,12 @@ export class HapClient extends EventEmitter {
     for (const [username, pin] of Object.entries(opts.pins ?? {})) {
       this.pins[HapClient.normaliseUsername(username)] = pin
     }
+    if (opts.ownUsernames) {
+      this.ownUsernames = new Set(opts.ownUsernames.map(username => HapClient.normaliseUsername(username)))
+    }
     this.logger = opts.logger || console // Fallback to console if no logger is provided
     this.debugEnabled = !!opts.config.debug
+    this.debugRawPacketsEnabled = !!opts.config.debugRawPackets
     this.config = {
       ...opts.config,
       discoveryTimeout: opts.config.discoveryTimeout ?? this.defaultDiscoveryTimeout,
@@ -115,6 +157,58 @@ export class HapClient extends EventEmitter {
     this.logMessage('debug', msg, true)
   }
 
+  private debugPacket(direction: 'received' | 'sent', instance: HapInstance, packet: Buffer) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw packet ${direction}:\n${packet.toString('utf8')}`)
+  }
+
+  private debugRawResponse(instance: HapInstance, operation: string, response: any) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    const body = typeof response.data === 'string'
+      ? response.data
+      : JSON.stringify(response.data)
+    const incomingMessage = response.request?.res
+    const status = incomingMessage?.statusCode ?? response.status
+    const statusText = incomingMessage?.statusMessage ?? response.statusText
+    const httpVersion = incomingMessage?.httpVersion ?? '1.1'
+    const rawHeaders: string[] = incomingMessage?.rawHeaders ?? Object.entries(response.headers ?? {})
+      .flatMap(([name, value]) => [
+        name,
+        Array.isArray(value)
+          ? value.join(', ')
+          : String(value),
+      ])
+    const statusLine = status
+      ? `HTTP/${httpVersion} ${status}${statusText
+        ? ` ${statusText}`
+        : ''}\r\n`
+      : ''
+    const headers = rawHeaders.length
+      ? `${Array.from({ length: rawHeaders.length / 2 }, (_, index) => `${rawHeaders[index * 2]}: ${rawHeaders[index * 2 + 1]}`).join('\r\n')}\r\n`
+      : ''
+    const packet = `${statusLine}${headers}\r\n${body}`
+
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} response:\n${packet}`)
+  }
+
+  private debugRawRequest(instance: HapInstance, operation: string, response: any, fallback: string) {
+    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
+      return
+    }
+
+    // Node's ClientRequest retains the exact serialized request headers in
+    // `_header`. Other Axios adapters do not expose that value, so use the
+    // equivalent minimal HTTP request as a fallback.
+    const packet = response.request?._header ?? fallback
+    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} request sent:\n${packet}`)
+  }
+
   info(msg: string) {
     this.logMessage('info', msg)
   }
@@ -125,6 +219,24 @@ export class HapClient extends EventEmitter {
 
   error(msg: string) {
     this.logMessage('error', msg)
+  }
+
+  private async fetchJson<T>(url: string, options?: Parameters<typeof fetch>[1]): Promise<T> {
+    const response = await fetch(url, options)
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+        ; (error as any).response = { status: response.status }
+      throw error
+    }
+    const isPut = options?.method?.toUpperCase() === 'PUT'
+    if (response.status === 204 && isPut) {
+      return undefined as T
+    }
+    const text = await response.text()
+    if (!text && isPut) {
+      return undefined as T
+    }
+    return JSON.parse(text) as T
   }
 
   // Example usage in methods
@@ -218,9 +330,18 @@ export class HapClient extends EventEmitter {
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`)
 
-      // check instance is not on the blacklist
-      if (this.config.instanceBlacklist && this.config.instanceBlacklist.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
-        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in blacklist. Disregarding.`)
+      // Combine lists or fall back to the old property safely
+      const denyList = this.config.instanceDenyList ?? this.config.instanceBlacklist
+
+      // check instance is not on the denylist
+      if (denyList && denyList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in denylist. Disregarding.`)
+        return
+      }
+
+      // check instance is on the whitelist
+      if (this.config.instanceAllowList && this.config.instanceAllowList.length && !this.config.instanceAllowList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} not found in whitelist. Disregarding.`)
         return
       }
 
@@ -242,8 +363,12 @@ export class HapClient extends EventEmitter {
           this.emit('instance-discovered', this.instances[existingInstanceIndex])
           if (configurationChanged) {
             this.emit('instance-configuration-changed', this.instances[existingInstanceIndex])
+            // The accessories changed, so the monitor needs the new service
+            // list, not just a fresh socket to the old one
+            void this.syncMonitorInstance(this.instances[existingInstanceIndex])
+          } else {
+            this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
           }
-          this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
         } else if (this.hapMonitor && this.hapMonitor.isInstanceMonitored(instance.username) && !this.hapMonitor.isInstanceConnected(instance.username)) {
           // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
           this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
@@ -260,14 +385,19 @@ export class HapClient extends EventEmitter {
       // services reach us with no addresses at all and would be dropped without
       // ever being probed (#40). Resolving the hostname recovers them, since the
       // system resolver caches records across packets correctly.
-      let addresses: string[] = Array.isArray(device.addresses) ? device.addresses : []
+      let addresses: string[] = Array.isArray(device.addresses)
+        ? device.addresses
+        : []
       if (!addresses.some(ip => IPV4_REGEX.test(ip)) && device.host) {
         try {
           const resolved = await lookup(device.host, { all: true, family: 4 })
           const resolvedAddresses = resolved.map(entry => entry.address)
           this.debug(`[HapClient] Discovery :: No usable address for ${instance.username}, `
             + `resolved ${device.host} to ${resolvedAddresses.join(', ') || 'nothing'}`)
-          addresses = [...addresses, ...resolvedAddresses]
+          addresses = [
+            ...addresses,
+            ...resolvedAddresses,
+          ]
         } catch (e) {
           this.debug(`[HapClient] Discovery :: Could not resolve host ${device.host} `
             + `for ${instance.username}: ${e.message}`)
@@ -278,9 +408,9 @@ export class HapClient extends EventEmitter {
         if (IPV4_REGEX.test(ip)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`)
-            const test: HapAccessoriesRespType = (await axios.get(`http://${ip}:${device.port}/accessories`, {
-              timeout: 10000,
-            })).data
+            const test: HapAccessoriesRespType = await this.fetchJson(`http://${ip}:${device.port}/accessories`, {
+              signal: AbortSignal.timeout(10000),
+            })
             if (test.accessories) {
               this.debug(`[HapClient] Discovery :: Success ${instance.username} via http://${ip}:${device.port}/accessories`)
               instance.ipAddress = ip
@@ -305,7 +435,9 @@ export class HapClient extends EventEmitter {
         this.instances.push(instance)
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`)
         this.emit('instance-discovered', instance)
-        this.hapMonitor?.refreshMonitorConnection(instance)
+        // A bridge that registers after the monitor was built has to be added
+        // to it, or it never gets live updates (homebridge-config-ui-x#2979)
+        void this.syncMonitorInstance(instance)
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
@@ -342,16 +474,21 @@ export class HapClient extends EventEmitter {
 
   private async checkInstanceConnection(instance: HapInstance): Promise<boolean> {
     try {
-      await axios.put(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
-        characteristics: [{ aid: -1, iid: -1 }],
-      }, {
+      await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(instance),
+          'Authorization': this.pinFor(instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics: [
+            { aid: -1, iid: -1 },
+          ],
+        }),
       })
       // A working connection clears the pin complaint, so a mismatch that comes
       // back later is reported again rather than staying silent.
-      instance.pinRefusalLogged = false
+      this.pinRefusals.delete(HapClient.normaliseUsername(instance.username))
       return true
     } catch (e) {
       this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`)
@@ -367,20 +504,57 @@ export class HapClient extends EventEmitter {
       // do with Homebridge, so telling their owner to "set the Homebridge pin"
       // is advice they cannot act on. The mDNS `md` record, kept as
       // `instance.name`, is what separates the two.
-      // Once per instance, not once per discovery cycle. The cause does not
+      // Once per bridge, not once per discovery cycle. The cause does not
       // change between probes, and a second Homebridge install on the same
       // network refuses this pin forever - its pin belongs to whoever runs it,
-      // not to the user reading this log (#2979).
-      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !instance.pinRefusalLogged) {
-        instance.pinRefusalLogged = true
-        this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
-          + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
+      // not to the user reading this log (#2979). Remembered on the client, see
+      // pinRefusals: the instance object is discarded when registration fails.
+      const refusalKey = HapClient.normaliseUsername(instance.username)
+      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !this.pinRefusals.has(refusalKey)) {
+        this.pinRefusals.add(refusalKey)
+        // Only a bridge of ours can have its pin corrected by whoever reads
+        // this log. Another Homebridge on the network is expected to refuse.
+        if (this.ownUsernames === undefined || this.ownUsernames.has(refusalKey)) {
+          this.warn(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
+            + `refused the pin, so its accessories will not be shown. Make sure the Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
+        } else {
+          this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] `
+            + `refused the pin and is not one of this Homebridge's bridges, so it is another Homebridge on the network - its accessories are not shown here and nothing needs changing.`)
+        }
       }
       return false
     }
   }
 
-  private async getAccessories(): Promise<HapAccessoriesRespType['accessories']> {
+  /**
+   * Give a running monitor this bridge's current services - see
+   * HapMonitor.updateInstance. Only this bridge is fetched, so registering one
+   * more bridge does not re-read every other one. A failure is logged and left
+   * for the next discovery cycle; it must never break discovery itself.
+   */
+  private async syncMonitorInstance(instance: HapInstance): Promise<void> {
+    if (!this.hapMonitor) {
+      return
+    }
+    try {
+      const services = await this.getAllServices(instance)
+      // getAccessories() swallows a failed read and returns nothing, which
+      // updateInstance() would take as "no services" and drop the bridge. A
+      // bridge whose configuration just changed has usually just restarted, so
+      // a failed read is likely here: reconnect the existing subscriptions
+      // instead, as before this sync existed, and leave the rest to the next
+      // configuration change.
+      if (instance.connectionFailedCount > 0) {
+        this.hapMonitor.refreshMonitorConnection(instance)
+        return
+      }
+      this.hapMonitor.updateInstance(instance, services.filter(x => x.instance.username === instance.username))
+    } catch (e) {
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Could not add the bridge to the monitor: ${e?.message ?? e}`)
+    }
+  }
+
+  private async getAccessories(only?: HapInstance): Promise<HapAccessoriesRespType['accessories']> {
     if (!this.instances.length) {
       this.debug('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.')
     }
@@ -390,9 +564,11 @@ export class HapClient extends EventEmitter {
     // this.instances, which shifts the next one into its index and makes the
     // for..of iterator step over it - so the bridge immediately after an evicted
     // one silently contributed nothing to this call.
-    for (const instance of [...this.instances]) {
+    for (const instance of only
+      ? [only]
+      : [...this.instances]) {
       try {
-        const resp: HapAccessoriesRespType = (await axios.get(`http://${instance.ipAddress}:${instance.port}/accessories`)).data
+        const resp: HapAccessoriesRespType = await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/accessories`)
         instance.connectionFailedCount = 0
         for (const accessory of resp.accessories) {
           accessory.instance = instance
@@ -425,7 +601,13 @@ export class HapClient extends EventEmitter {
     // If `services` is not provided, retrieve all services
     services = services ?? await this.getAllServices()
     this.hapMonitor?.finish()
-    this.hapMonitor = new HapMonitor(this.logger, this.debug.bind(this), instance => this.pinFor(instance), services)
+    this.hapMonitor = new HapMonitor(
+      this.logger,
+      this.debug.bind(this),
+      instance => this.pinFor(instance),
+      services,
+      this.debugPacket.bind(this),
+    )
     return this.hapMonitor
   }
 
@@ -433,9 +615,9 @@ export class HapClient extends EventEmitter {
    *
    * @returns Array of all services from all Homebridge instances
    */
-  public async getAllServices() {
+  public async getAllServices(only?: HapInstance) {
     /* Get Accessories from HAP */
-    const accessories = await this.getAccessories()
+    const accessories = await this.getAccessories(only)
 
     const services: Array<ServiceType> = []
 
@@ -511,7 +693,9 @@ export class HapClient extends EventEmitter {
             uuid: s.type,
             type: Services[s.type],
             humanType: this.humanizeString(Services[s.type]),
-            serviceName: (serviceName.value.toString().length ? serviceName.value.toString() : accessoryInformation.Name),
+            serviceName: (serviceName.value.toString().length
+              ? serviceName.value.toString()
+              : accessoryInformation.Name),
             serviceCharacteristics,
             accessoryInformation,
             values: {},
@@ -526,7 +710,13 @@ export class HapClient extends EventEmitter {
 
           // generate a stable name-based unique id that remains consistent even if the accessory aid changes
           service.nameBasedUniqueId = createHash('sha256')
-            .update([service.instance.name, service.instance.username, service.accessoryInformation.Manufacturer, service.serviceName, service.uuid.slice(0, 8)].join('|'))
+            .update([
+              service.instance.name,
+              service.instance.username,
+              service.accessoryInformation.Manufacturer,
+              service.serviceName,
+              service.uuid.slice(0, 8),
+            ].join('|'))
             .digest('hex')
 
           /* Helper function to trigger a call to the accessory to get all the characteristic values */
@@ -591,45 +781,76 @@ export class HapClient extends EventEmitter {
 
   async refreshServiceCharacteristics(service: ServiceType): Promise<ServiceType> {
     try {
-      const iids: number[] = service.serviceCharacteristics.map(c => c.iid)
+      const iids: number[] = service.serviceCharacteristics.filter(c => c.canRead).map(c => c.iid)
+      if (!iids.length) {
+        return service
+      }
 
-      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        params: {
-          id: iids.map(iid => `${service.aid}.${iid}`).join(','),
-        },
-      })).data
+      const url = `http://${service.instance.ipAddress}:${service.instance.port}/characteristics?id=${encodeURIComponent(iids.map(iid => `${service.aid}.${iid}`).join(','))}`
+      const resp: HapCharacteristicRespType = await this.fetchJson(url)
 
+      let firstError: HapCharacteristicError | undefined
       resp.characteristics.forEach((c) => {
-        const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === service.aid)
-        if (!characteristic || c.value === undefined) {
+        const characteristic = service.serviceCharacteristics.find(x => x.iid === c.iid && x.aid === c.aid)
+        if (!characteristic) {
           return
         }
-        characteristic.value = c.value
-        service.values[characteristic.type] = c.value
+        characteristic.status = c.status ?? 0
+        if (characteristic.status !== 0) {
+          firstError ??= new HapCharacteristicError(c)
+          return
+        }
+        if (c.value !== undefined) {
+          characteristic.value = c.value
+          service.values[characteristic.type] = c.value
+        }
       })
+      if (firstError) {
+        throw firstError
+      }
       return service
     } catch (e) {
+      if (e instanceof HapCharacteristicError) {
+        throw e
+      }
       this.debug(`[HapClient] +${e}`)
-
       this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`)
     }
   }
 
   async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
     try {
-      const resp: HapCharacteristicRespType = (await axios.get(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        params: {
-          id: `${service.aid}.${iid}`,
-        },
-      })).data
+      const characteristicId = `${service.aid}.${iid}`
+      const requestTarget = `/characteristics?id=${encodeURIComponent(characteristicId)}`
+      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}${requestTarget}`)
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+          ; (error as any).response = { status: response.status }
+        throw error
+      }
+      const responseData = await response.text()
+      const responseForDebug = {
+        data: responseData,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      }
+      const fallbackRequest = `GET ${requestTarget} HTTP/1.1\r\nHost: ${service.instance.ipAddress}:${service.instance.port}\r\n\r\n`
+      this.debugRawRequest(service.instance, `getValue(${characteristicId})`, responseForDebug, fallbackRequest)
+      this.debugRawResponse(service.instance, `getValue(${characteristicId})`, responseForDebug)
+      const resp: HapCharacteristicRespType = JSON.parse(responseData)
 
       const respCharacteristic = resp.characteristics?.[0]
       if (!respCharacteristic) {
         return undefined
       }
-      const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === service.aid)
+      const characteristic = service.serviceCharacteristics.find(x => x.iid === respCharacteristic.iid && x.aid === respCharacteristic.aid)
       if (!characteristic) {
         return undefined
+      }
+      characteristic.status = respCharacteristic.status ?? 0
+      if (characteristic.status !== 0) {
+        throw new HapCharacteristicError(respCharacteristic)
       }
       if (respCharacteristic.value !== undefined) {
         characteristic.value = respCharacteristic.value
@@ -638,8 +859,10 @@ export class HapClient extends EventEmitter {
 
       return characteristic
     } catch (e) {
+      if (e instanceof HapCharacteristicError) {
+        throw e
+      }
       this.debug(`[HapClient] +${e}`)
-
       this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`)
     }
   }
@@ -654,18 +877,21 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
     try {
-      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        characteristics: [
-          {
-            aid: service.aid,
-            iid,
-            value,
-          },
-        ],
-      }, {
+      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics: [
+            {
+              aid: service.aid,
+              iid,
+              value,
+            },
+          ],
+        }),
       })
       return this.getCharacteristic(service, iid)
     } catch (e) {
@@ -707,12 +933,15 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristics(service: ServiceType, characteristics: { aid: number, iid: number, value: string | number | boolean }[]) {
     try {
-      await axios.put(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
-        characteristics,
-      }, {
+      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+        method: 'PUT',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          characteristics,
+        }),
       })
       return this.refreshServiceCharacteristics(service)
     } catch (e) {
@@ -732,15 +961,28 @@ export class HapClient extends EventEmitter {
 
   async getResource(service: ServiceType, body: ResourceRequestType) {
     try {
-      const resp: any = await axios.post(`http://${service.instance.ipAddress}:${service.instance.port}/resource`, {
-        ...body,
-        aid: service.aid,
-      }, {
-        responseType: 'arraybuffer',
+      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}/resource`, {
+        method: 'POST',
         headers: {
-          Authorization: this.pinFor(service.instance),
+          'Authorization': this.pinFor(service.instance),
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          ...body,
+          aid: service.aid,
+        }),
       })
+      // fetch resolves on an HTTP error status, where axios rejected. Reject
+      // here too, so the catch below can still name a refused pin.
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
+          ; (error as any).response = { status: response.status }
+        throw error
+      }
+      const resp: any = {
+        status: response.status,
+        data: Buffer.from(await response.arrayBuffer()),
+      }
       if (resp.status === 200) {
         return resp.data
       } else {
