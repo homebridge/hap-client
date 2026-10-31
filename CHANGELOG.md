@@ -7,8 +7,8 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 ### Breaking Changes
 
 - Retired the usage of axios for making HTTP requests. Now uses fetch instead.
-- `getCharacteristic()` and `refreshCharacteristics()` now throw a `HapCharacteristicError` (check `error.name`) when a bridge returns a nonzero HAP status. Before, they only logged it.
-- Characteristics now carry a `status` field (check it before `value`), and `value` is left unset when a bridge returns a nonzero HAP status. Before, `value` was always present.
+- `getCharacteristic()` and `refreshServiceCharacteristics()` now throw a `HapCharacteristicError` (check `error.name`) when a bridge returns a nonzero HAP status. Before, they only logged it.
+- `getCharacteristic()` and `refreshServiceCharacteristics()` now set `status` on each characteristic they read, and leave `value` at its last good reading when `status` is nonzero. A monitor event resets `status` to 0. Before, there was no `status`, so a stale `value` looked current.
 
 ### Changed
 
