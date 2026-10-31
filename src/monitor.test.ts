@@ -76,7 +76,9 @@ describe('hapMonitor', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
-    const services = [buildService(username)]
+    const services = [
+      buildService(username),
+    ]
     monitor = new HapMonitor(null, vi.fn(), '031-45-154', services)
   })
 
@@ -138,7 +140,9 @@ describe('hapMonitor', () => {
     it('should call logger.error rather than logger.log when error() is invoked', () => {
       const logSpy = vi.fn()
       const errorSpy = vi.fn()
-      const services = [buildService('CC:CC:CC:CC:CC:CC')]
+      const services = [
+        buildService('CC:CC:CC:CC:CC:CC'),
+      ]
       const m = new HapMonitor({ log: logSpy, error: errorSpy }, vi.fn(), '031-45-154', services)
 
       m.error('boom')
@@ -147,6 +151,28 @@ describe('hapMonitor', () => {
       // "ERROR:" prefix, so anything filtering by log level missed it.
       expect(errorSpy).toHaveBeenCalledWith('[HapMonitor] boom')
       expect(logSpy).not.toHaveBeenCalled()
+
+      m.finish()
+    })
+  })
+
+  describe('raw packet logging', () => {
+    it('reports sent and received packets without converting the buffers to text', () => {
+      const debugPacket = vi.fn()
+      const services = [
+        buildService('DD:DD:DD:DD:DD:DD'),
+      ]
+      const m = new HapMonitor(null, vi.fn(), '031-45-154', services, debugPacket)
+      const instance = (m as any).evInstances[0]
+      const onSentPacket = vi.mocked(createConnection).mock.calls.at(-1)?.[3]
+      const sentPacket = Buffer.from([0x00, 0xFF, 0x41])
+      const receivedPacket = Buffer.from([0x80, 0x00, 0x42])
+
+      onSentPacket?.(sentPacket)
+      instance.socket.emit('data', receivedPacket)
+
+      expect(debugPacket).toHaveBeenCalledWith('sent', instance, sentPacket)
+      expect(debugPacket).toHaveBeenCalledWith('received', instance, receivedPacket)
 
       m.finish()
     })
@@ -165,6 +191,92 @@ describe('hapMonitor', () => {
         ipAddress: '127.0.0.2',
       })).not.toThrow()
     })
+  })
+})
+
+/**
+ * A bridge that registers after the monitor was built used to be invisible to
+ * it: `refreshMonitorConnection` only reconnected bridges it already knew, and
+ * nothing ever added a new one. Its values loaded but no live update arrived
+ * until the UI process restarted (homebridge-config-ui-x#2979).
+ */
+describe('hapMonitor updateInstance - bridges that appear after the monitor started', () => {
+  const first = 'AA:BB:CC:DD:EE:FF'
+  const late = '11:22:33:44:55:66'
+  let monitor: HapMonitor
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    monitor = new HapMonitor(null, vi.fn(), '031-45-154', [
+      buildService(first),
+    ])
+  })
+
+  afterEach(() => {
+    monitor.finish()
+  })
+
+  it('adds a bridge the monitor has never seen and subscribes to its characteristics', () => {
+    const service = buildService(late)
+
+    monitor.updateInstance(service.instance as any, [service])
+
+    expect(monitor.isInstanceMonitored(late)).toBe(true)
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({
+      characteristics: [
+        { aid: 1, iid: 2, ev: true },
+      ],
+    })
+  })
+
+  it('routes an event from the late bridge to service-update', () => {
+    const service = buildService(late)
+    monitor.updateInstance(service.instance as any, [service])
+    const updates: any[] = []
+    monitor.on('service-update', update => updates.push(update))
+    vi.mocked(parseMessage).mockReturnValueOnce({
+      protocol: 'EVENT',
+      statusCode: 200,
+      body: JSON.stringify({
+        characteristics: [
+          { aid: 1, iid: 2, value: true },
+        ],
+      }),
+    } as any)
+    const evInstance = (monitor as any).evInstances.find((x: any) => x.username === late)
+
+    ;(monitor as any).handleEventMessage(evInstance, 'raw')
+
+    expect(updates).toHaveLength(1)
+    expect(updates[0][0].instance.username).toBe(late)
+    expect(updates[0][0].values.On).toBe(true)
+  })
+
+  it('replaces a known bridge\'s services when its configuration changed, and resubscribes', () => {
+    const changed = buildService(first)
+    changed.serviceCharacteristics[0].iid = 9
+
+    monitor.updateInstance(changed.instance as any, [changed])
+
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(createConnection).mock.calls[1][2]).toEqual({
+      characteristics: [
+        { aid: 1, iid: 9, ev: true },
+      ],
+    })
+    expect((monitor as any).evInstances).toHaveLength(1)
+  })
+
+  it('drops a bridge that no longer has anything to watch', () => {
+    const service = buildService(first)
+    service.serviceCharacteristics[0].perms = ['pr', 'pw']
+    const socket = (monitor as any).evInstances[0].socket
+
+    monitor.updateInstance(service.instance as any, [service])
+
+    expect(socket.destroy).toHaveBeenCalled()
+    expect(monitor.isInstanceMonitored(first)).toBe(false)
   })
 })
 
@@ -220,7 +332,10 @@ describe('findMessageBoundary', () => {
     // buffer here would swallow that EVENT.
     const ack = 'HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n'
     const event = build('{"characteristics":[{"aid":1,"iid":2,"value":true}]}')
-    const combined = Buffer.concat([Buffer.from(ack, 'utf8'), event])
+    const combined = Buffer.concat([
+      Buffer.from(ack, 'utf8'),
+      event,
+    ])
 
     const boundary = findMessageBoundary(combined)
     expect(boundary).toBe(Buffer.byteLength(ack, 'utf8'))
@@ -246,7 +361,9 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
     // monitor splits and dispatches multi-message TCP chunks.
     vi.mocked(parseMessage).mockImplementation((msg: any) => realHttpParser(msg))
 
-    const services = [buildService(username)]
+    const services = [
+      buildService(username),
+    ]
     monitor = new HapMonitor(null, vi.fn(), '031-45-154', services)
   })
 
@@ -257,7 +374,11 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
   })
 
   function buildEvent(value: boolean): string {
-    const body = JSON.stringify({ characteristics: [{ aid: 1, iid: 2, value }] })
+    const body = JSON.stringify({
+      characteristics: [
+        { aid: 1, iid: 2, value },
+      ],
+    })
     return [
       'EVENT/1.0 200 OK',
       'Content-Type: application/hap+json',
@@ -279,6 +400,85 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
     // Without the fix only the first message was parsed and emitted; the
     // second and third silently fell off the floor.
     expect(updates).toHaveLength(3)
+  })
+
+  it('sets a characteristic status to zero when an event is received', () => {
+    const service = (monitor as any).services[0]
+    const characteristic = service.serviceCharacteristics[0]
+    characteristic.status = -70402
+
+    const socket = (monitor as any).evInstances[0].socket
+    socket.emit('data', Buffer.from(buildEvent(true), 'utf8'))
+
+    expect(characteristic).toMatchObject({ status: 0, value: true })
+    expect(service.values.On).toBe(true)
+  })
+
+  it('refreshes related characteristics before emitting a StatusActive update', async () => {
+    const service = (monitor as any).services[0]
+    const statusActive = service.serviceCharacteristics[0]
+    statusActive.type = 'StatusActive'
+    statusActive.description = 'Status Active'
+    const temperature = {
+      ...statusActive,
+      iid: 3,
+      type: 'CurrentTemperature',
+      description: 'Current Temperature',
+      status: 0,
+      value: 6,
+      getValue: vi.fn(async () => {
+        temperature.status = -70402
+        throw new Error('Characteristic 1.3 returned HAP status -70402')
+      }),
+    }
+    service.serviceCharacteristics.push(temperature)
+    const update = new Promise<any[]>((resolve) => {
+      monitor.once('service-update', resolve)
+    })
+
+    const socket = (monitor as any).evInstances[0].socket
+    socket.emit('data', Buffer.from(buildEvent(false), 'utf8'))
+    const updatedServices = await update
+
+    expect(temperature.getValue).toHaveBeenCalledOnce()
+    expect(temperature.status).toBe(-70402)
+    expect(statusActive).toMatchObject({ value: false, status: 0 })
+    expect(updatedServices).toEqual([service])
+  })
+
+  it('emits one service when an event updates multiple characteristics on it', () => {
+    const updates: any[][] = []
+    monitor.on('service-update', services => updates.push(services))
+    const service = (monitor as any).services[0]
+    service.serviceCharacteristics.push({
+      ...service.serviceCharacteristics[0],
+      iid: 3,
+      type: 'Brightness',
+      description: 'Brightness',
+      status: -70402,
+      value: 10,
+    })
+    const body = JSON.stringify({
+      characteristics: [
+        { aid: 1, iid: 2, value: true },
+        { aid: 1, iid: 3, value: 75 },
+      ],
+    })
+    const event = [
+      'EVENT/1.0 200 OK',
+      'Content-Type: application/hap+json',
+      `Content-Length: ${Buffer.byteLength(body, 'utf8')}`,
+      '',
+      body,
+    ].join('\r\n')
+
+    const socket = (monitor as any).evInstances[0].socket
+    socket.emit('data', Buffer.from(event, 'utf8'))
+
+    expect(updates).toHaveLength(1)
+    expect(updates[0]).toEqual([service])
+    expect(service.values).toMatchObject({ On: true, Brightness: 75 })
+    expect(service.serviceCharacteristics[1].status).toBe(0)
   })
 
   it('should not drop an EVENT coalesced behind a bodyless ACK in the same chunk', () => {

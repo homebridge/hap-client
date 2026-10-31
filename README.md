@@ -29,6 +29,8 @@ this.monitor = await this.hapClient.monitorCharacteristics(services?: ServiceTyp
 
 The discovery timeout can be configured by setting the `discoveryTimeout` property in the `config` object.
 
+Set `debugRawPackets: true` together with `debug: true` to pass complete HAP event-monitor TCP packets and full `getValue()` HTTP exchanges to the logger's `debug` method as plain text. A `getValue()` exchange includes the serialized GET request followed by the response status line, headers, and unparsed body. Raw sent packets can contain the bridge PIN, so only enable this temporarily and treat the resulting logs as sensitive.
+
 ```
 const { HapClient } = require('@homebridge/hap-client');
 
@@ -80,6 +82,8 @@ this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted
 
 this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed or restarted
 ```
+
+When a monitored service reports a `StatusActive` change, the monitor refreshes its other readable, event-enabled characteristics before emitting `service-update`. This ensures any HAP error statuses returned during an availability change are reflected in the emitted service.
 
 ## Dependent Applications
 

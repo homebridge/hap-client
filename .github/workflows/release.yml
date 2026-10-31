@@ -150,6 +150,19 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Published version: $VERSION"
 
+      - name: Add publish summary
+        run: |
+          {
+            echo "## Published HAP Client"
+            echo
+            echo "| Property | Value |"
+            echo "| --- | --- |"
+            echo '| Version | `v${{ steps.get-published-version.outputs.version }}` |'
+            echo '| Release type | `${{ needs.determine-release-type.outputs.release_type }}` |'
+            echo '| npm tag | `${{ needs.determine-release-type.outputs.npm_tag }}` |'
+            echo '| Package | [View on npm](https://www.npmjs.com/package/@homebridge/hap-client/v/${{ steps.get-published-version.outputs.version }}) |'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   pre-release:
     needs: [determine-release-type, publish]
     name: Create GitHub Pre-Release
