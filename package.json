@@ -38,6 +38,11 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "check": "npm install && npm outdated",
     "clean": "rimraf ./dist",
