@@ -23,6 +23,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: restore 5.3.0 behaviour for getResource errors and failed monitor syncs
 - ci: add a publish summary to the release workflow
 - chore: publish only dist, README, LICENSE and CHANGELOG to npm
+- fix: sort the files allowlist for lint, and stop emitting source maps
 
 ## v5.3.0 (2026-08-31)
 
