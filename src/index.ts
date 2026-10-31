@@ -228,7 +228,15 @@ export class HapClient extends EventEmitter {
         ; (error as any).response = { status: response.status }
       throw error
     }
-    return response.json() as Promise<T>
+    const isPut = options?.method?.toUpperCase() === 'PUT'
+    if (response.status === 204 && isPut) {
+      return undefined as T
+    }
+    const text = await response.text()
+    if (!text && isPut) {
+      return undefined as T
+    }
+    return JSON.parse(text) as T
   }
 
   // Example usage in methods
