@@ -46,6 +46,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: reopen a closed monitor connection after a wait instead of only on the next discovery run
 - fix: follow a known bridge to a new address when the old one stopped working
 - build: keep the doc comments in the published type files
+- build: run the typecheck before the tests and before a publish
 
 ### Homebridge Dependencies
 
