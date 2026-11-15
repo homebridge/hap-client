@@ -36,6 +36,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: drop the decorator options and the excluded folders which nothing uses from the tsconfig
 - build: state the supported node.js versions in the engines field
 - chore: fix on save with eslint instead of tslint in the editor settings
+- test: run the client against a real hap-nodejs bridge on the loopback address
 
 ### Homebridge Dependencies
 
