@@ -10,11 +10,18 @@ import httpMessageParser from './httpParser.js'
 
 export const parseMessage = httpMessageParser
 
+/** How long the monitor socket may be idle before the system starts to probe it. */
+const KEEP_ALIVE_DELAY_MS = 30000
+
 export function createConnection(instance, pin: string, body, onPacket?: (packet: Buffer) => void) {
   const client = netCreateConnection({
     host: instance.ipAddress,
     port: instance.port,
   })
+  // The bridge only writes to this socket when a value changes, so a bridge
+  // whose machine lost power or network would leave it open for ever. With
+  // keep-alive the system probes an idle connection and closes a dead one.
+  client.setKeepAlive(true, KEEP_ALIVE_DELAY_MS)
 
   const message = _buildMessage({
     method: 'PUT',
