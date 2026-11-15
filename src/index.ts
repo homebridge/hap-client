@@ -10,11 +10,30 @@ import decamelize from 'decamelize'
 import { titleize } from 'inflection'
 
 import { Characteristics, Services } from './hap-types.js'
-import { AccessoryInformationProperties, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapInstance, ResourceRequestType, ServiceType } from './interfaces.js'
+import { AccessoryInformation, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapClientLogger, HapInstance, ResourceRequestType, ServiceType } from './interfaces.js'
 import { HapMonitor } from './monitor.js'
 import { toLongFormUUID } from './uuid.js'
 
 export * from './interfaces.js'
+
+// The generated maps hold a name for every known UUID and a UUID for every
+// known name. Looked up with a UUID from a bridge, the answer can be missing.
+const serviceNames: Record<string, string | undefined> = Services
+const characteristicNames: Record<string, string | undefined> = Characteristics
+
+/** The text of something that was thrown, which need not be an Error. */
+function errorMessage(e: unknown): string {
+  return e instanceof Error
+    ? e.message
+    : String(e)
+}
+
+/** The HTTP status of a failed request, when the bridge answered with one. */
+function httpStatusOf(e: unknown): number | undefined {
+  return e instanceof HapHttpError
+    ? e.response.status
+    : undefined
+}
 
 class HapCharacteristicError extends Error {
   constructor(characteristic: HapCharacteristicRespType['characteristics'][number]) {
@@ -86,7 +105,7 @@ export class HapClient extends EventEmitter {
   private readonly defaultDiscoveryTimeout: number = 60000
   private readonly defaultAutoStartDiscovery: boolean = true
 
-  private readonly logger: any
+  private readonly logger: HapClientLogger
   private readonly pin: string
   private readonly pins: Record<string, string> = {}
   /**
@@ -113,7 +132,7 @@ export class HapClient extends EventEmitter {
 
   private resetInstancePoolTimeout: NodeJS.Timeout | undefined = undefined
   private startDiscoveryTimeout: NodeJS.Timeout | undefined = undefined
-  private hapMonitor: HapMonitor
+  private hapMonitor: HapMonitor | undefined
 
   constructor(opts: {
     pin: string
@@ -141,8 +160,8 @@ export class HapClient extends EventEmitter {
      * #3001). Without the list every Homebridge bridge is treated as ours.
      */
     ownUsernames?: string[]
-    logger?: any
-    config: any
+    logger?: HapClientLogger
+    config: Config
   }) {
     super()
     this.pin = opts.pin
@@ -186,7 +205,8 @@ export class HapClient extends EventEmitter {
    * Unified logging method.
    */
   private logMessage(level: 'debug' | 'info' | 'warn' | 'error', msg: string, includeStack = false) {
-    if (!this.logger || typeof this.logger[level] !== 'function') {
+    const log = this.logger?.[level]
+    if (typeof log !== 'function') {
       return
     }
 
@@ -200,14 +220,14 @@ export class HapClient extends EventEmitter {
       ? `${msg} @ ${new Error().stack?.split('\n')[3]?.trim()}` // eslint-disable-line unicorn/error-message
       : msg
 
-    this.logger[level](message)
+    log.call(this.logger, message)
   }
 
   debug(msg: string) {
     this.logMessage('debug', msg, true)
   }
 
-  private debugPacket(direction: 'received' | 'sent', instance: HapInstance, packet: Buffer) {
+  private debugPacket(direction: 'received' | 'sent', instance: Pick<HapInstance, 'ipAddress' | 'port' | 'username'>, packet: Buffer) {
     if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
       return
     }
@@ -324,7 +344,7 @@ export class HapClient extends EventEmitter {
         this.debug(`[HapClient] Discovery :: Re-broadcasting discovery query`)
         this.browser?.update()
       } catch (e) {
-        this.debug(`[HapClient] Discovery :: Failed to re-broadcast discovery query: ${e?.message ?? e}`)
+        this.debug(`[HapClient] Discovery :: Failed to re-broadcast discovery query: ${errorMessage(e)}`)
       }
     }
   }
@@ -457,7 +477,7 @@ export class HapClient extends EventEmitter {
           ]
         } catch (e) {
           this.debug(`[HapClient] Discovery :: Could not resolve host ${device.host} `
-            + `for ${instance.username}: ${e.message}`)
+            + `for ${instance.username}: ${errorMessage(e)}`)
         }
         if (outdated()) {
           return
@@ -485,7 +505,7 @@ export class HapClient extends EventEmitter {
               + `without an accessories list, trying any remaining address`)
           } catch (e) {
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} via http://${ip}:${device.port}/accessories`)
-            this.debug(`[HapClient] Discovery :: Failed ${instance.username} with error: ${e.message}`)
+            this.debug(`[HapClient] Discovery :: Failed ${instance.username} with error: ${errorMessage(e)}`)
           }
           if (outdated()) {
             return
@@ -570,7 +590,7 @@ export class HapClient extends EventEmitter {
       this.pinRefusals.delete(HapClient.normaliseUsername(instance.username))
       return true
     } catch (e) {
-      this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${e.message}`)
+      this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] returned an error while attempting connection: ${errorMessage(e)}`)
       // A 470 here is a pin mismatch, not an unreachable bridge - the same
       // cause the control paths below already name. Saying so is what stops it
       // reading as a discovery or network fault: the bridge answered, it just
@@ -589,7 +609,8 @@ export class HapClient extends EventEmitter {
       // not to the user reading this log (#2979). Remembered on the client, see
       // pinRefusals: the instance object is discarded when registration fails.
       const refusalKey = HapClient.normaliseUsername(instance.username)
-      if ((e.response?.status === 470 || e.response?.status === 401) && isHomebridgeInstance(instance) && !this.pinRefusals.has(refusalKey)) {
+      const status = httpStatusOf(e)
+      if ((status === 470 || status === 401) && isHomebridgeInstance(instance) && !this.pinRefusals.has(refusalKey)) {
         this.pinRefusals.add(refusalKey)
         // Only a bridge of ours can have its pin corrected by whoever reads
         // this log. Another Homebridge on the network is expected to refuse.
@@ -632,7 +653,7 @@ export class HapClient extends EventEmitter {
       }
       this.hapMonitor.updateInstance(instance, services.filter(x => x.instance.username === instance.username))
     } catch (e) {
-      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Could not add the bridge to the monitor: ${e?.message ?? e}`)
+      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Could not add the bridge to the monitor: ${errorMessage(e)}`)
     }
   }
 
@@ -715,7 +736,7 @@ export class HapClient extends EventEmitter {
 
       /* Parse Accessory Information */
       const accessoryInformationService = accessory.services.find(x => x.type === Services.AccessoryInformation)
-      const accessoryInformation = {} as AccessoryInformationProperties
+      const accessoryInformation: AccessoryInformation = {}
 
       if (accessoryInformationService && accessoryInformationService.characteristics) {
         accessoryInformationService.characteristics.forEach((c) => {
@@ -727,33 +748,32 @@ export class HapClient extends EventEmitter {
 
       /* Parse All Services */
       accessory.services
-        .filter(s => !this.hiddenServices.includes(s.type) && Services[s.type])
         .forEach((s) => {
-          let serviceName = s.characteristics.find(x => x.type === Characteristics.Name)
-
-          /* Set default name characteristic if none defined or value is null/undefined */
-          if (!serviceName || serviceName.value === null || serviceName.value === undefined) {
-            serviceName = {
-              iid: 0,
-              type: Characteristics.Name,
-              description: 'Name',
-              format: 'string',
-              value: accessoryInformation.Name || this.humanizeString(Services[s.type]),
-              perms: ['pr'],
-            }
+          /* Only services with a known type are surfaced */
+          const serviceType = serviceNames[s.type]
+          if (!serviceType || this.hiddenServices.includes(s.type)) {
+            return
           }
+
+          /* The name characteristic, or a default if none is defined or its value is null/undefined */
+          const serviceName = String(s.characteristics.find(x => x.type === Characteristics.Name)?.value
+            ?? (accessoryInformation.Name || this.humanizeString(serviceType)))
 
           /* Parse Service Characteristics */
           const serviceCharacteristics: Array<CharacteristicType> = s.characteristics
-            .filter(c => !this.hiddenCharacteristics.includes(c.type) && Characteristics[c.type])
-            .map((c) => {
+            .flatMap((c) => {
+              /* Only characteristics with a known type are surfaced */
+              const characteristicType = characteristicNames[c.type]
+              if (!characteristicType || this.hiddenCharacteristics.includes(c.type)) {
+                return []
+              }
               return {
                 aid: accessory.aid,
                 iid: c.iid,
                 uuid: c.type,
-                type: Characteristics[c.type],
-                serviceType: Services[s.type],
-                serviceName: serviceName.value.toString(),
+                type: characteristicType,
+                serviceType,
+                serviceName,
                 description: c.description,
                 value: c.value,
                 format: c.format,
@@ -773,11 +793,11 @@ export class HapClient extends EventEmitter {
             aid: accessory.aid,
             iid: s.iid,
             uuid: s.type,
-            type: Services[s.type],
-            humanType: this.humanizeString(Services[s.type]),
-            serviceName: (serviceName.value.toString().length
-              ? serviceName.value.toString()
-              : accessoryInformation.Name),
+            type: serviceType,
+            humanType: this.humanizeString(serviceType),
+            serviceName: serviceName.length
+              ? serviceName
+              : String(accessoryInformation.Name ?? ''),
             serviceCharacteristics,
             accessoryInformation,
             values: {},
@@ -874,7 +894,8 @@ export class HapClient extends EventEmitter {
     return services.find(x => x.serviceName === serviceName)
   }
 
-  async refreshServiceCharacteristics(service: ServiceType): Promise<ServiceType> {
+  /** Resolves with nothing when the bridge could not be reached (the error is logged). */
+  async refreshServiceCharacteristics(service: ServiceType): Promise<ServiceType | undefined> {
     try {
       const iids: number[] = service.serviceCharacteristics.filter(c => c.canRead).map(c => c.iid)
       if (!iids.length) {
@@ -909,11 +930,13 @@ export class HapClient extends EventEmitter {
         throw e
       }
       this.debug(`[HapClient] +${e}`)
-      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${e.message}`)
+      this.error(`[HapClient] Failed to refresh characteristics for ${service.serviceName}: ${errorMessage(e)}`)
+      return undefined
     }
   }
 
-  async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType> {
+  /** Resolves with nothing when the bridge could not be reached (the error is logged), or did not answer for this characteristic. */
+  async getCharacteristic(service: ServiceType, iid: number): Promise<CharacteristicType | undefined> {
     try {
       const characteristicId = `${service.aid}.${iid}`
       const requestTarget = `/characteristics?id=${encodeURIComponent(characteristicId)}`
@@ -956,7 +979,8 @@ export class HapClient extends EventEmitter {
         throw e
       }
       this.debug(`[HapClient] +${e}`)
-      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${e.message}`)
+      this.error(`[HapClient] Failed to get characteristic for ${service.serviceName} with iid ${iid}: ${errorMessage(e)}`)
+      return undefined
     }
   }
 
@@ -1040,7 +1064,8 @@ export class HapClient extends EventEmitter {
     }
   }
 
-  async getResource(service: ServiceType, body: ResourceRequestType) {
+  /** Resolves with the image, or with nothing when the bridge answered without one. */
+  async getResource(service: ServiceType, body: ResourceRequestType): Promise<Buffer | undefined> {
     try {
       const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}/resource`, {
         method: 'POST',
@@ -1058,16 +1083,12 @@ export class HapClient extends EventEmitter {
       if (!response.ok) {
         throw new HapHttpError(response)
       }
-      const resp: any = {
-        status: response.status,
-        data: Buffer.from(await response.arrayBuffer()),
+      if (response.status === 200) {
+        return Buffer.from(await response.arrayBuffer())
       }
-      if (resp.status === 200) {
-        return resp.data
-      } else {
-        this.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
-          + `Failed to request resource from accessory ${service.serviceName}. Response status Code ${resp.status}`)
-      }
+      this.warn(`[HapClient] getResource [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
+        + `Failed to request resource from accessory ${service.serviceName}. Response status Code ${response.status}`)
+      return undefined
     } catch (e) {
       throw this.requestFailure(service, e, `Failed to request resource from accessory ${service.serviceName}.`, 'Failed to request resource from accessory', 'Failed to request resource')
     }
@@ -1078,20 +1099,21 @@ export class HapClient extends EventEmitter {
    * reject with. A bridge that refused the pin answers 470 (or 401): the log
    * and the error then name the pin, since that is what has to be corrected.
    */
-  private requestFailure(service: ServiceType, e: any, logLine: string, pinFailure: string, otherFailure: string): Error {
+  private requestFailure(service: ServiceType, e: unknown, logLine: string, pinFailure: string, otherFailure: string): Error {
     const where = `[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})]`
     this.error(`${where} ${logLine}`)
     if (e instanceof HapCharacteristicError) {
       this.error(`[HapClient] ${e.message}`)
       return e
     }
-    if (e.response?.status === 470 || e.response?.status === 401) {
+    const status = httpStatusOf(e)
+    if (status === 470 || status === 401) {
       this.warn(`${where} Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)
       return new Error(`${pinFailure}. Make sure the Homebridge pin for ${service.instance.ipAddress}:${service.instance.port} `
         + `is set to ${this.pinFor(service.instance)}.`)
     }
-    this.error(e.message)
-    return new Error(`${otherFailure}: ${e.message}`)
+    this.error(errorMessage(e))
+    return new Error(`${otherFailure}: ${errorMessage(e)}`)
   }
 
   private humanizeString(string: string) {

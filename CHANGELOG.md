@@ -24,6 +24,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - refactor: handle a failed write or resource request in one place instead of three
 - refactor: drop a second browser start, needless bind calls and a hand-written ipv4 pattern
 - refactor: drop an unused field and a commented-out line from the monitor request builder
+- refactor(types): type the client's logger, config, errors and answers and correct its public types
 
 ### Homebridge Dependencies
 
