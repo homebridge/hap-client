@@ -16,7 +16,6 @@
     "declaration": true,
     "outDir": "./dist",
     "removeComments": true,
-    "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
