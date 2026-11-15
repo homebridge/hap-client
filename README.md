@@ -120,6 +120,8 @@ The monitor returned by `monitorCharacteristics()`:
 | `monitor-error`   | `instance, error`    | The connection to a bridge had an error              |
 | `monitor-refresh` | `instance`           | The connection to a bridge was opened again          |
 
+After a connection closes, the monitor opens it again by itself: after 5, 15, 30, 60 and 60 seconds. After five failed tries in a row it waits until discovery finds the bridge again.
+
 When a monitored service reports a `StatusActive` change, the monitor reads its other readable, event-enabled characteristics again before it emits `service-update`. This way any HAP error status returned during an availability change is part of the emitted service.
 
 ## Dependent Applications
