@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 
 import { createConnection, parseMessage } from './eventedHttpClient/index.js'
-import { CharacteristicValue, HapClientLogger, HapEvInstance, HapInstance, ServiceType } from './interfaces.js'
+import { CharacteristicValue, HapClientLogger, HapEvInstance, HapInstance, HapMonitorEvents, ServiceType } from './interfaces.js'
 
 // Upper bound for the per-socket receive buffer. HAP EVENT messages are small
 // JSON characteristic updates (well under a KB in practice); a buffer that
@@ -51,7 +51,7 @@ export function findMessageBoundary(buffer: Buffer): number {
 /**
  * HapMonitor - Creates a monitor to watch for changes in accessory characteristics.  And generates 'service-update' events when they change.
  */
-export class HapMonitor extends EventEmitter {
+export class HapMonitor extends EventEmitter<HapMonitorEvents> {
   /**
    * Resolves the pin to use for a given bridge. A plain string is still
    * accepted and means "this pin for every instance", which is what the

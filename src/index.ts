@@ -10,7 +10,7 @@ import decamelize from 'decamelize'
 import { titleize } from 'inflection'
 
 import { Characteristics, Services } from './hap-types.js'
-import { AccessoryInformation, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapClientLogger, HapInstance, ResourceRequestType, ServiceType } from './interfaces.js'
+import { AccessoryInformation, CharacteristicType, HapAccessoriesRespType, HapCharacteristicRespType, HapClientEvents, HapClientLogger, HapInstance, ResourceRequestType, ServiceType } from './interfaces.js'
 import { HapMonitor } from './monitor.js'
 import { toLongFormUUID } from './uuid.js'
 
@@ -89,7 +89,7 @@ export interface Config {
   autoStartDiscovery?: boolean
 }
 
-export class HapClient extends EventEmitter {
+export class HapClient extends EventEmitter<HapClientEvents> {
   private readonly bonjour = this.createBonjour()
   private browser: InstanceType<typeof Bonjour.Browser> | undefined
   private discoveryInProgress = false
