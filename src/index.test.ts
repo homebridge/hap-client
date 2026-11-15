@@ -1032,14 +1032,14 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
     expect(capturedRemoveAllListeners).toHaveBeenCalled()
   })
 
-  it('setCharacteristicsByTypes should not send an empty PUT when only Configured Name is in the payload', async () => {
-    // Service with both an "On" characteristic and a "Configured Name" characteristic.
+  it('setCharacteristicsByTypes leaves ConfiguredName out of the write and sends the rest', async () => {
     const service = buildService() as any
     service.serviceCharacteristics.push({
       aid: 1,
       iid: 11,
       uuid: '000000E3-0000-1000-8000-0026BB765291',
-      type: 'Configured Name',
+      // The type name as the generated list has it: no space
+      type: 'ConfiguredName',
       serviceType: 'Switch',
       serviceName: 'My Switch',
       description: 'Configured Name',
@@ -1050,14 +1050,32 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
       canWrite: true,
       ev: false,
     })
+    const written = service.serviceCharacteristics[0]
+    mockFetch.mockResolvedValue(fetchResponse('', 204, 'No Content'))
 
-    const putSpy = mockFetch
+    await hapClient.setCharacteristicsByTypes(service, { [written.type]: true, ConfiguredName: 'Bar' })
 
-    await hapClient.setCharacteristicsByTypes(service, { 'Configured Name': 'Bar' })
+    const put = mockFetch.mock.calls.find(([, options]) => options?.method === 'PUT')
+    expect(JSON.parse(put![1].body)).toEqual({
+      characteristics: [
+        { aid: written.aid, iid: written.iid, value: true },
+      ],
+    })
+  })
 
-    // Without the guard the function called setCharacteristics with `[]`,
-    // which sends `PUT /characteristics { characteristics: [] }` to HAP.
-    expect(putSpy).not.toHaveBeenCalled()
+  it('setCharacteristicsByTypes sends nothing when only ConfiguredName is in the payload', async () => {
+    const service = buildService() as any
+    service.serviceCharacteristics.push({
+      aid: 1,
+      iid: 11,
+      type: 'ConfiguredName',
+      perms: ['pr', 'pw'],
+      canRead: true,
+    })
+
+    await hapClient.setCharacteristicsByTypes(service, { ConfiguredName: 'Bar' })
+
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('getResource returns the body on success', async () => {

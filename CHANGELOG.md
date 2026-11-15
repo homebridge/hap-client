@@ -16,6 +16,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: stop two services sharing a uniqueId and keep the old id as legacyUniqueId
 - fix: name the pin when a bridge answers the monitor subscription with 470
 - fix: send no stray bytes after the body of the monitor subscription request
+- fix: leave ConfiguredName out of a write of several characteristics as the check intended
 
 ### Homebridge Dependencies
 
