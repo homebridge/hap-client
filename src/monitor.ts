@@ -224,7 +224,8 @@ export class HapMonitor extends EventEmitter {
   private handleEventMessage(instance: HapEvInstance, messageStr: string) {
     const message = parseMessage(messageStr)
 
-    if (message.statusCode === 401) {
+    // HAP-NodeJS answers a wrong pin with 470
+    if (message.statusCode === 401 || message.statusCode === 470) {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
         + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
     }
