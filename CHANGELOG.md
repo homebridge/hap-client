@@ -50,6 +50,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - ci: keep the npm publish token to the publish job, stay on npm 11 and pass refs as env
 - ci: pin the third-party actions to a commit
 - ci: publish with node 24, as the other homebridge repos do
+- chore: use the same homepage and issues urls as the other homebridge packages
 
 ### Homebridge Dependencies
 
