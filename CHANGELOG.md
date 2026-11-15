@@ -53,6 +53,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: use the same homepage and issues urls as the other homebridge packages
 - fix: resolve a write that worked when the read back finds the accessory not responding
 - fix: open no connection from a monitor after finish() was called
+- fix: give the characteristics of a service with an empty name the same name as the service
 
 ### Homebridge Dependencies
 

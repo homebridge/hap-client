@@ -890,6 +890,70 @@ describe('hapClient getAllServices - null Name characteristic value', () => {
     expect(services).toHaveLength(1)
     expect(services[0].serviceName).toBe('Switch')
   })
+
+  it('gives the characteristics the name of their service when the Name characteristic is empty', async () => {
+    ;(hapClient as any).instances = [
+      {
+        name: 'Test Bridge',
+        username: 'AA:BB:CC:DD:EE:FF',
+        ipAddress: '127.0.0.1',
+        port: 51826,
+        services: [],
+        connectionFailedCount: 0,
+        configurationNumber: '1',
+      },
+    ]
+    mockFetch.mockResolvedValue(fetchResponse({
+      accessories: [
+        {
+          aid: 2,
+          services: [
+            {
+              iid: 1,
+              type: Services.AccessoryInformation,
+              characteristics: [
+                {
+                  iid: 2,
+                  type: Characteristics.Name,
+                  description: 'Name',
+                  value: 'Lamp',
+                  format: 'string',
+                  perms: ['pr'],
+                },
+              ],
+            },
+            {
+              iid: 8,
+              type: Services.Switch,
+              characteristics: [
+                {
+                  iid: 9,
+                  type: Characteristics.Name,
+                  description: 'Name',
+                  value: '',
+                  format: 'string',
+                  perms: ['pr'],
+                },
+                {
+                  iid: 10,
+                  type: Characteristics.On,
+                  description: 'On',
+                  value: false,
+                  format: 'bool',
+                  perms: ['pr', 'pw', 'ev'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }))
+
+    const [service] = await hapClient.getAllServices()
+
+    expect(service.serviceName).toBe('Lamp')
+    expect(service.serviceCharacteristics.map(c => c.serviceName)).toEqual(['Lamp'])
+  })
 })
 
 describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
