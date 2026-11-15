@@ -702,8 +702,8 @@ describe('hapClient getAllServices - null Name characteristic value', () => {
 
   it('should not throw when an accessory exposes a Name characteristic with a null value', async () => {
     // Switch service UUID + Name characteristic UUID, both in long form.
-    const switchUuid = Object.keys(Services).find(k => Services[k] === 'Switch')!
-    const onUuid = Object.keys(Characteristics).find(k => Characteristics[k] === 'On')!
+    const switchUuid = Services.Switch
+    const onUuid = Characteristics.On
 
     const instance = {
       name: 'Test Bridge',
@@ -1084,7 +1084,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
 
     const data = await hapClient.getResource(service, { 'resource-type': 'image', 'image-width': 640, 'image-height': 360 } as any)
 
-    expect(Buffer.from(data).toString()).toBe('jpeg')
+    expect(data?.toString()).toBe('jpeg')
   })
 
   // Under axios an HTTP error status rejected; fetch resolves, and getResource
@@ -1118,7 +1118,7 @@ describe('hapClient refreshServiceCharacteristics - defensive entries', () => {
 
     // A successful HAP write responds with an empty 204. Parsing that body as
     // JSON threw, so the caller treated a successful write as a failure.
-    expect(characteristic.value).toBe(false)
+    expect(characteristic?.value).toBe(false)
     expect(service.values.On).toBe(false)
   })
 })
@@ -1564,7 +1564,7 @@ describe('hapClient writes', () => {
 
     const result = await hapClient.setCharacteristic(service, 10, 1)
 
-    expect(result.value).toBe(1)
+    expect(result?.value).toBe(1)
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })
@@ -1836,7 +1836,7 @@ describe('hapClient request time limits', () => {
     for (const [, options] of mockFetch.mock.calls) {
       expect(options?.signal).toBeInstanceOf(AbortSignal)
     }
-    expect(timeout.mock.calls.map(([ms]) => ms)).toEqual(mockFetch.mock.calls.map(() => limit))
+    expect(timeout.mock.calls.map((call: unknown[]) => call[0])).toEqual(mockFetch.mock.calls.map(() => limit))
   })
 })
 

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { PluginCharacteristics, PluginServices } from '../scripts/plugin-types.js'
-import { Categories, Characteristics, Enums, Services } from './hap-types.js'
+import { Categories, Enums, Characteristics as GeneratedCharacteristics, Services as GeneratedServices } from './hap-types.js'
+
+// The generated maps, looked up with names and UUIDs which are only known at run time
+const Services: Record<string, string> = GeneratedServices
+const Characteristics: Record<string, string> = GeneratedCharacteristics
 
 const UUID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/
 

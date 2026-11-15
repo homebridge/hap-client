@@ -64,7 +64,7 @@ function buildService(username: string): ServiceType {
       port: 51826,
       services: [],
       connectionFailedCount: 0,
-      configurationNumber: 1,
+      configurationNumber: '1',
     },
   }
 }
