@@ -12,7 +12,7 @@
     "types": [
       "node"
     ],
-    "strict": false,
+    "strict": true,
     "declaration": true,
     "outDir": "./dist",
     "removeComments": true,

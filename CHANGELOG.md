@@ -26,6 +26,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - refactor: drop an unused field and a commented-out line from the monitor request builder
 - refactor(types): type the client's logger, config, errors and answers and correct its public types
 - refactor(types): type the monitor and its request builder without any
+- build: turn on typescript strict mode
 
 ### Homebridge Dependencies
 
