@@ -11,79 +11,116 @@
 
 </span>
 
-A client for an insecure HAP-NodeJS instance. Provides a Typescript based interface based on the homekit accessory protocol, allowing the creation of clients able to connect to and control Homebridge devices.
+A client for a HAP-NodeJS instance which runs in insecure mode. It finds the Homebridge bridges on the network, reads their accessories, sets values, and reports changes as they happen.
 
-## API
+## Requirements
 
-```
-const { HapClient } = require('@homebridge/hap-client');
+- Node.js `^22.12.0`, `^24` or `^26`.
+- This package is an ES module. Use `import`; `require()` works too on these Node.js versions.
+- Each bridge must run in insecure mode (start Homebridge with `-I`), and the client needs the bridge's pin.
 
-this.hapClient = new HapClient({
-  config: { debug: true },
-  pin: config.username,
-  logger: this.log,
-});
+## Usage
 
-this.monitor = await this.hapClient.monitorCharacteristics(services?: ServiceType[]);  // Creates event monitors for all event capabable Homebridge services.  If a list of services is, this list is used rather than all
-```
+```ts
+import { HapClient } from '@homebridge/hap-client'
 
-The discovery timeout can be configured by setting the `discoveryTimeout` property in the `config` object.
+const hapClient = new HapClient({
+  pin: '031-45-154', // the pin of the bridge
+  logger: console,
+  config: { debug: false },
+})
 
-Set `debugRawPackets: true` together with `debug: true` to pass complete HAP event-monitor TCP packets and full `getValue()` HTTP exchanges to the logger's `debug` method as plain text. A `getValue()` exchange includes the serialized GET request followed by the response status line, headers, and unparsed body. Raw sent packets can contain the bridge PIN, so only enable this temporarily and treat the resulting logs as sensitive.
+hapClient.on('instance-discovered', async (instance) => {
+  console.log(`Found ${instance.username} at ${instance.ipAddress}:${instance.port}`)
 
-```
-const { HapClient } = require('@homebridge/hap-client');
+  // every service of every registered bridge
+  const services = await hapClient.getAllServices()
 
-this.hapClient = new HapClient({
-  config: { debug: true, discoveryTimeout: 5000, instanceBlacklist: ['34:42:4E:4A:38:00', '6E:69:51:34:54:00']},
-  pin: config.username,
-  logger: this.log,
-});
-
-// the discovery process will auto-start now with the timeout of 5 seconds
-```
-
-It's possible to control the discovery process manually, by settings the `autoStartDiscovery` property to `false` and then calling `this.hapClient.startDiscovery(discoveryTimeout?: number)` when ready. If no timeout is provided to the function, the `discoveryTimeout` property will be used from the `config` object, and if that is not provided either, the default discovery timeout (60 seconds) will be used.
-It's also possible to stop the discovery process manually by calling `stopDiscovery()`
-
-```
-const { HapClient } = require('@homebridge/hap-client');
-
-this.hapClient = new HapClient({
-  config: { debug: true, autoStartDiscovery: false, discoveryTimeout: 10000 },
-  pin: config.username,
-  logger: this.log,
-});
-
-this.hapClient.startDiscovery(); // use the timeout provided in the config, 10000 ms
-this.hapClient.startDiscovery(5000); // use the argument as timeout, 5000 ms
-
-this.hapClient.stopDiscovery(); // stop the discovery process manually
+  // live updates for those services
+  const monitor = await hapClient.monitorCharacteristics(services)
+  monitor.on('service-update', (updated) => {
+    for (const service of updated) {
+      console.log(service.serviceName, service.values)
+    }
+  })
+})
 ```
 
-## hap-client Events
+### Options
 
+| Option         | Meaning                                                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pin`          | The pin to send to a bridge.                                                                                                                                                |
+| `pins`         | Optional. A pin per bridge, by the bridge's username (its MAC address). For child bridges which have a pin of their own. A bridge not listed gets `pin`.                    |
+| `ownUsernames` | Optional. The usernames of the bridges which belong to this Homebridge. A pin refused by another Homebridge on the network is then logged at debug level, not as a warning. |
+| `logger`       | Optional, `console` by default. An object with any of `debug`, `info`, `warn`, `error`.                                                                                     |
+| `config`       | See below.                                                                                                                                                                  |
+
+| `config` key         | Meaning                                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `debug`              | Pass debug lines to the logger.                                                                                                                                     |
+| `debugRawPackets`    | Together with `debug`: log complete event-monitor packets and `getValue()` exchanges as text. They can contain the bridge pin, so only turn it on for a short time. |
+| `discoveryTimeout`   | How long a discovery runs, in milliseconds. 60000 by default.                                                                                                       |
+| `autoStartDiscovery` | Start discovery when the client is created. `true` by default.                                                                                                      |
+| `instanceAllowList`  | Usernames of the only bridges to use.                                                                                                                               |
+| `instanceDenyList`   | Usernames of bridges to ignore. (`instanceBlacklist` is the old name and still works.)                                                                              |
+
+### Discovery
+
+Discovery starts by itself unless `autoStartDiscovery` is `false`. Every bridge found is tested with the pin before it is registered.
+
+```ts
+import { HapClient } from '@homebridge/hap-client'
+
+const hapClient = new HapClient({
+  pin: '031-45-154',
+  config: { autoStartDiscovery: false, discoveryTimeout: 10000 },
+})
+
+hapClient.startDiscovery() // runs for the timeout of the config, 10000 ms
+hapClient.startDiscovery(5000) // runs for 5000 ms
+hapClient.stopDiscovery() // stop it by hand
+hapClient.refreshInstances() // search again (or ask again while a discovery runs)
+hapClient.resetInstancePool() // forget every bridge and search again after 6 seconds
+hapClient.destroy() // stop everything and close the sockets
 ```
-this.hapClient.on('instance-discovered', this.instanceDiscovered(instance: HapInstance));  // Emitted during discovery for each HB instance discovered
 
-this.hapClient.on('instance-configuration-changed', this.instanceChanged(instance: HapInstance));  // Emitted during discovery for each HB instance change
+### Reading and writing
 
-this.hapClient.on('discovery-terminated', this.discoveryTerminated());  // Instance discovery was terminated
+- `getAllServices()` resolves with a `ServiceType` for every service with a known type. Each one carries its characteristics in `serviceCharacteristics`, their last known values in `values`, and helpers such as `refreshCharacteristics()`, `setCharacteristicByType(type, value)` and `getCharacteristic(type)`.
+- A characteristic has `getValue()` and `setValue(value)`.
+- `uniqueId` identifies a service. `legacyUniqueId` is the id as it was built up to v5.4.0 (two services could share one); use it only to move data saved under an old id.
+- A request to a bridge is given up after 15 seconds (30 seconds for a camera snapshot).
 
-this.hapClient.on('discovery-ended', this.discoveryEnded());  // Emitted when discovery has ended ( 60 Seconds )
+### Errors
 
-this.hapClient.on('discovery-stopped', this.discoveryStopped());  // Emitted when discovery has been stopped manually
+- A read which the accessory answers with a HAP error status rejects with an error whose `name` is `HapCharacteristicError`. The characteristic keeps its last good `value`, and its `status` holds the HAP status.
+- A write which the bridge refuses (the plugin's set handler failed, the value is read-only) rejects with a `HapCharacteristicError` too.
+- A write or snapshot request refused because of the pin rejects with an error which names the pin.
+- A read from a bridge which can not be reached is logged and resolves with `undefined`.
 
-this.monitor.on('service-update', this.serviceUpdate(services)); // Emitted when a characteristic change is received from a homebridge service
+## Events
 
-this.monitor.on('monitor-close', this.monitorClose(instance, hadError)); // Emitted when the connection to a homebridge service is closed ( likely a restart )
+`HapClient`:
 
-this.monitor.on('monitor-error', this.monitorError(instance, error)); // Emitted when the connection to a homebridge service has an error ( likely a restart )
+| Event                            | Arguments  | When                                                                             |
+| -------------------------------- | ---------- | -------------------------------------------------------------------------------- |
+| `instance-discovered`            | `instance` | A bridge was registered, or a known one changed its port or configuration number |
+| `instance-configuration-changed` | `instance` | The accessories of a known bridge changed                                        |
+| `discovery-ended`                |            | Discovery ran for its whole timeout                                              |
+| `discovery-stopped`              |            | Discovery was stopped with `stopDiscovery()`                                     |
+| `discovery-terminated`           |            | A running discovery was cut short by `resetInstancePool()`                       |
 
-this.monitor.on('monitor-refresh', this.monitorRefresh(instance, error)); // Emitted when the connection to a homebridge instance has been refreshed or restarted
-```
+The monitor returned by `monitorCharacteristics()`:
 
-When a monitored service reports a `StatusActive` change, the monitor refreshes its other readable, event-enabled characteristics before emitting `service-update`. This ensures any HAP error statuses returned during an availability change are reflected in the emitted service.
+| Event             | Arguments            | When                                                 |
+| ----------------- | -------------------- | ---------------------------------------------------- |
+| `service-update`  | `services`           | Values changed. Each changed service is listed once  |
+| `monitor-close`   | `instance, hadError` | The connection to a bridge closed (likely a restart) |
+| `monitor-error`   | `instance, error`    | The connection to a bridge had an error              |
+| `monitor-refresh` | `instance`           | The connection to a bridge was opened again          |
+
+When a monitored service reports a `StatusActive` change, the monitor reads its other readable, event-enabled characteristics again before it emits `service-update`. This way any HAP error status returned during an availability change is part of the emitted service.
 
 ## Dependent Applications
 
