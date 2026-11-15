@@ -239,6 +239,18 @@ export class HapClient extends EventEmitter {
     return JSON.parse(text) as T
   }
 
+  /**
+   * A bridge answers a write it refused in part or in full with 207 and a
+   * status per characteristic (a plugin's set handler failed, the value is
+   * read-only). A write that worked is answered with an empty 204.
+   */
+  private static assertWritten(resp: HapCharacteristicRespType | undefined) {
+    const refused = resp?.characteristics?.find(c => c.status)
+    if (refused) {
+      throw new HapCharacteristicError(refused)
+    }
+  }
+
   // Example usage in methods
   public resetInstancePool() {
     if (this.discoveryInProgress) {
@@ -877,7 +889,7 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
     try {
-      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+      HapClient.assertWritten(await this.fetchJson<HapCharacteristicRespType | undefined>(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
         method: 'PUT',
         headers: {
           'Authorization': this.pinFor(service.instance),
@@ -892,7 +904,7 @@ export class HapClient extends EventEmitter {
             },
           ],
         }),
-      })
+      }))
       // A write-only characteristic (a remote key, identify) answers a read
       // with an error status, which would report a write that worked as failed.
       const written = service.serviceCharacteristics.find(x => x.iid === iid)
@@ -903,6 +915,10 @@ export class HapClient extends EventEmitter {
     } catch (e) {
       this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
         + `Failed to set value for ${service.serviceName}.`)
+      if (e instanceof HapCharacteristicError) {
+        this.error(`[HapClient] ${e.message}`)
+        throw e
+      }
       if (e.response && (e.response?.status === 470 || e.response?.status === 401)) {
         this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
           + `Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)
@@ -939,7 +955,7 @@ export class HapClient extends EventEmitter {
 
   async setCharacteristics(service: ServiceType, characteristics: { aid: number, iid: number, value: string | number | boolean }[]) {
     try {
-      await this.fetchJson(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
+      HapClient.assertWritten(await this.fetchJson<HapCharacteristicRespType | undefined>(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
         method: 'PUT',
         headers: {
           'Authorization': this.pinFor(service.instance),
@@ -948,11 +964,15 @@ export class HapClient extends EventEmitter {
         body: JSON.stringify({
           characteristics,
         }),
-      })
+      }))
       return this.refreshServiceCharacteristics(service)
     } catch (e) {
       this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
         + `Failed to set value for ${service.serviceName}.`)
+      if (e instanceof HapCharacteristicError) {
+        this.error(`[HapClient] ${e.message}`)
+        throw e
+      }
       if (e.response && (e.response?.status === 470 || e.response?.status === 401)) {
         this.warn(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
           + `Make sure Homebridge pin for this instance is set to ${this.pinFor(service.instance)}.`)

@@ -1466,6 +1466,49 @@ describe('hapClient writes', () => {
     expect(mockFetch.mock.calls[0][1].method).toBe('PUT')
   })
 
+  it('rejects a write the bridge refused instead of reporting success', async () => {
+    const service = buildService()
+    // HAP-NodeJS answers 207 with a status per characteristic when a set handler fails
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, status: -70402 },
+          ],
+        }, 207, 'Multi-Status')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, value: 0 },
+          ],
+        }))
+
+    await expect(hapClient.setCharacteristic(service, 10, 1)).rejects.toMatchObject({
+      name: 'HapCharacteristicError',
+      message: 'Characteristic 2.10 returned HAP status -70402',
+    })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a write of several characteristics when the bridge refused one of them', async () => {
+    const service = buildService()
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, status: 0 },
+            { aid: 2, iid: 13, status: -70402 },
+          ],
+        }, 207, 'Multi-Status')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, value: 1 },
+          ],
+        }))
+
+    await expect(hapClient.setCharacteristicsByTypes(service, { Active: 1, RemoteKey: 4 })).rejects.toMatchObject({
+      name: 'HapCharacteristicError',
+      message: 'Characteristic 2.13 returned HAP status -70402',
+    })
+  })
+
   it('still reads back a readable characteristic after writing it', async () => {
     const service = buildService()
     mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
