@@ -1527,6 +1527,31 @@ describe('hapClient writes', () => {
     })
   })
 
+  it.each([
+    [
+      'setCharacteristic',
+      (service: any) => hapClient.setCharacteristic(service, 10, 1),
+    ],
+    [
+      'setCharacteristics',
+      (service: any) => hapClient.setCharacteristics(service, [
+        { aid: 2, iid: 10, value: 1 },
+      ]),
+    ],
+  ])('%s names the pin when the bridge refuses it, and the status otherwise', async (_name, write) => {
+    const service = buildService()
+    const logger = (hapClient as any).logger
+
+    mockFetch.mockResolvedValue(fetchResponse({ status: -70401 }, 470, ''))
+    await expect(write(service)).rejects.toThrow('Failed to control accessory. Make sure the Homebridge pin for 127.0.0.1:51826 is set to 123-45-678.')
+    expect(logger.error).toHaveBeenCalledWith('[HapClient] [127.0.0.1:51826 (AA:BB:CC:DD:EE:FF)] Failed to set value for TV.')
+    expect(logger.warn).toHaveBeenCalledWith('[HapClient] [127.0.0.1:51826 (AA:BB:CC:DD:EE:FF)] Make sure Homebridge pin for this instance is set to 123-45-678.')
+
+    mockFetch.mockResolvedValue(fetchResponse('', 500, 'Internal Server Error'))
+    await expect(write(service)).rejects.toThrow('Failed to control accessory: HTTP 500 Internal Server Error')
+    expect(logger.error).toHaveBeenCalledWith('HTTP 500 Internal Server Error')
+  })
+
   it('still reads back a readable characteristic after writing it', async () => {
     const service = buildService()
     mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
