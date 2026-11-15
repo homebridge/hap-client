@@ -1696,6 +1696,41 @@ describe('hapClient writes', () => {
     expect(logger.error).toHaveBeenCalledWith('HTTP 500 Internal Server Error')
   })
 
+  it('resolves a write that worked when the read back finds the accessory not responding', async () => {
+    const service = buildService()
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse('', 204, 'No Content')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, status: -70402 },
+          ],
+        }, 207, 'Multi-Status'))
+
+    // a rejection here read the same as a write the bridge refused
+    const result = await hapClient.setCharacteristic(service, 10, 1)
+
+    expect(result).toBe(service.serviceCharacteristics[0])
+    expect(result?.status).toBe(-70402)
+  })
+
+  it('resolves a write of several values that worked when the read back finds a part not responding', async () => {
+    const service = buildService()
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse('', 204, 'No Content')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, status: -70402 },
+          ],
+        }, 207, 'Multi-Status'))
+
+    const result = await hapClient.setCharacteristics(service, [
+      { aid: 2, iid: 10, value: 1 },
+    ])
+
+    expect(result).toBe(service)
+    expect(service.serviceCharacteristics[0].status).toBe(-70402)
+  })
+
   it('still reads back a readable characteristic after writing it', async () => {
     const service = buildService()
     mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
