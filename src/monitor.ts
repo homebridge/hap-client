@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 
 import { createConnection, parseMessage } from './eventedHttpClient/index.js'
-import { HapEvInstance, HapInstance, ServiceType } from './interfaces.js'
+import { CharacteristicValue, HapClientLogger, HapEvInstance, HapInstance, ServiceType } from './interfaces.js'
 
 // Upper bound for the per-socket receive buffer. HAP EVENT messages are small
 // JSON characteristic updates (well under a KB in practice); a buffer that
@@ -60,13 +60,13 @@ export class HapMonitor extends EventEmitter {
   private readonly pinFor: (instance: { username?: string }) => string
   private readonly evInstances: HapEvInstance[]
   private readonly services: ServiceType[]
-  private logger: any
+  private readonly logger: HapClientLogger | null | undefined
   private readonly debug: (arg0: string) => void
   private readonly debugPacket?: (direction: 'received' | 'sent', instance: HapEvInstance, packet: Buffer) => void
 
   constructor(
-    logger: any,
-    debug: any,
+    logger: HapClientLogger | null | undefined,
+    debug: (message: string) => void,
     pin: string | ((instance: { username?: string }) => string),
     services: ServiceType[],
     debugPacket?: (direction: 'received' | 'sent', instance: HapEvInstance, packet: Buffer) => void,
@@ -79,7 +79,7 @@ export class HapMonitor extends EventEmitter {
       ? pin
       : () => pin
     this.services = services
-    this.evInstances = [] as HapEvInstance[]
+    this.evInstances = []
 
     // get a list of characteristics we can watch for each instance
     this.parseServices()
@@ -89,7 +89,7 @@ export class HapMonitor extends EventEmitter {
   }
 
   log(message: string) {
-    this.logger?.log(`[HapMonitor] ${message}`)
+    this.logger?.log?.(`[HapMonitor] ${message}`)
   }
 
   error(message: string) {
@@ -109,18 +109,19 @@ export class HapMonitor extends EventEmitter {
   connectInstance(instance: HapEvInstance) {
     try {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`)
-      instance.socket = createConnection(
+      const socket = createConnection(
         instance,
         this.pinFor(instance),
         { characteristics: instance.evCharacteristics },
         packet => this.debugPacket?.('sent', instance, packet),
       )
+      instance.socket = socket
       instance.monitoring = true
       instance.recvBuffer = Buffer.alloc(0)
 
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`)
 
-      instance.socket.on('data', (data) => {
+      socket.on('data', (data) => {
         // Accumulate raw bytes. Decoding per-chunk would corrupt a multibyte
         // UTF-8 character that happens to be split across two TCP packets.
         const chunk = Buffer.isBuffer(data)
@@ -154,23 +155,25 @@ export class HapMonitor extends EventEmitter {
           this.error(`[${instance.ipAddress}:${instance.port} (${instance.username})] `
             + `receive buffer exceeded ${MAX_RECV_BUFFER_BYTES} bytes without a complete message; resetting connection`)
           instance.recvBuffer = Buffer.alloc(0)
-          instance.socket.destroy()
+          socket.destroy()
         }
       })
-      instance.socket.on('close', (hadError) => {
+      socket.on('close', (hadError) => {
         this.emit('monitor-close', instance, hadError)
-        instance.socket.destroy()
-        instance.socket.removeAllListeners()
+        socket.destroy()
+        socket.removeAllListeners()
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`)
       })
-      instance.socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
+      socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
         this.emit('monitor-error', instance, error)
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] error: ${error}`)
       })
     } catch (e) {
-      this.debug(e)
+      this.debug(String(e))
 
-      this.error(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e.message}`)
+      this.error(`Monitor Start Error [${instance.ipAddress}:${instance.port} (${instance.username})]: ${e instanceof Error
+        ? e.message
+        : String(e)}`)
     }
   }
 
@@ -218,7 +221,7 @@ export class HapMonitor extends EventEmitter {
    */
   isInstanceConnected(username: string): boolean {
     const instance = this.evInstances.find(x => x.username === username)
-    return instance?.socket != null && instance?.socket !== undefined && !instance.socket.destroyed
+    return instance?.socket != null && !instance.socket.destroyed
   }
 
   private handleEventMessage(instance: HapEvInstance, messageStr: string) {
@@ -230,9 +233,9 @@ export class HapMonitor extends EventEmitter {
         + `${message.statusCode} ${message.statusMessage} - make sure Homebridge pin for this instance is set to ${this.pinFor(instance)}.`)
     }
 
-    if (message.protocol === 'EVENT') {
+    if (message.protocol === 'EVENT' && message.body) {
       try {
-        const body = JSON.parse(message.body)
+        const body = JSON.parse(message.body) as { characteristics?: { aid: number, iid: number, value: CharacteristicValue }[] }
         if (body.characteristics && body.characteristics.length) {
           this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] `
             + `Got Event: ${JSON.stringify(body.characteristics)}`)
@@ -278,7 +281,7 @@ export class HapMonitor extends EventEmitter {
                   && characteristic.getValue)
                 .map(async (characteristic) => {
                   try {
-                    await characteristic.getValue()
+                    await characteristic.getValue?.()
                   } catch {
                     // getValue records a returned HAP error status on the
                     // characteristic before rejecting. Preserve it and still
@@ -328,7 +331,7 @@ export class HapMonitor extends EventEmitter {
     }
 
     if (!instance) {
-      instance = { ...refreshInstance, evCharacteristics: [] } as HapEvInstance
+      instance = { ...refreshInstance, evCharacteristics: [] }
       this.evInstances.push(instance)
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Added to the monitor`)
     } else {
@@ -364,17 +367,16 @@ export class HapMonitor extends EventEmitter {
 
       if (evCharacteristics.length) {
         // register the instance if it's not already there
-        if (!this.evInstances.some(x => x.username === service.instance.username)) {
-          const newInstance = { ...service.instance } as HapEvInstance
-          newInstance.evCharacteristics = []
-          this.evInstances.push(newInstance)
+        let instance = this.evInstances.find(x => x.username === service.instance.username)
+        if (!instance) {
+          instance = { ...service.instance, evCharacteristics: [] }
+          this.evInstances.push(instance)
         }
-
-        const instance = this.evInstances.find(x => x.username === service.instance.username)
+        const watched = instance.evCharacteristics ??= []
 
         for (const evCharacteristic of evCharacteristics) {
-          if (!instance.evCharacteristics.some(x => x.aid === service.aid && x.iid === evCharacteristic.iid)) {
-            instance.evCharacteristics.push({ aid: service.aid, iid: evCharacteristic.iid, ev: true })
+          if (!watched.some(x => x.aid === service.aid && x.iid === evCharacteristic.iid)) {
+            watched.push({ aid: service.aid, iid: evCharacteristic.iid, ev: true })
           }
         }
       }

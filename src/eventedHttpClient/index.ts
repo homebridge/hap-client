@@ -4,7 +4,7 @@
  */
 
 import { Buffer } from 'node:buffer'
-import { createConnection as netCreateConnection } from 'node:net'
+import { createConnection as netCreateConnection, Socket } from 'node:net'
 
 import httpMessageParser from './httpParser.js'
 
@@ -13,9 +13,21 @@ export const parseMessage = httpMessageParser
 /** How long the monitor socket may be idle before the system starts to probe it. */
 const KEEP_ALIVE_DELAY_MS = 30000
 
-export function createConnection(instance, pin: string, body, onPacket?: (packet: Buffer) => void) {
+interface MonitorRequest {
+  method: string
+  url: string
+  headers: Record<string, string>
+  body?: string
+}
+
+export function createConnection(
+  instance: { ipAddress: string | null, port: number },
+  pin: string,
+  body: unknown,
+  onPacket?: (packet: Buffer) => void,
+): Socket {
   const client = netCreateConnection({
-    host: instance.ipAddress,
+    host: instance.ipAddress ?? undefined,
     port: instance.port,
   })
   // The bridge only writes to this socket when a value changes, so a bridge
@@ -39,7 +51,7 @@ export function createConnection(instance, pin: string, body, onPacket?: (packet
   return client
 }
 
-function _headersToString(headers) {
+function _headersToString(headers: Record<string, string>): string {
   let response = ''
 
   for (const header of Object.keys(headers)) {
@@ -48,11 +60,10 @@ function _headersToString(headers) {
   return response
 }
 
-function _buildMessage(request) {
+function _buildMessage(request: MonitorRequest): string {
   const context = new URL(request.url)
-  let message
 
-  message = `${request.method} ${context.pathname}`
+  let message = `${request.method} ${context.pathname}`
   if (context.search) {
     message = message + context.search
   }
