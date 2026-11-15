@@ -15,6 +15,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: give up on a request to a bridge after 15 seconds, or 30 for a camera snapshot
 - fix: stop two services sharing a uniqueId and keep the old id as legacyUniqueId
 - fix: name the pin when a bridge answers the monitor subscription with 470
+- fix: send no stray bytes after the body of the monitor subscription request
 
 ### Homebridge Dependencies
 

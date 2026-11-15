@@ -60,7 +60,7 @@ function _buildMessage(request) {
   message = `${message} HTTP/1.1\r\nHost: ${context.host}\r\n${_headersToString(request.headers)}`
   if (request.body) {
     const contentLength = Buffer.byteLength(request.body, 'utf8')
-    message = `${message}Content-Length: ${contentLength}\r\n\r\n${request.body}\r\n\r\n`
+    message = `${message}Content-Length: ${contentLength}\r\n\r\n${request.body}`
   } else {
     message = `${message}\r\n\r\n`
   }

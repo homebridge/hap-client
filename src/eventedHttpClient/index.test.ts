@@ -91,4 +91,18 @@ describe('eventedHttpClient connection', () => {
 
     expect(setKeepAliveSpy).toHaveBeenCalledExactlyOnceWith(true, 30000)
   })
+
+  it('sends exactly as many body bytes as it declares, with nothing after them', () => {
+    const body = {
+      characteristics: [
+        { aid: 1, iid: 2, ev: true },
+      ],
+    }
+
+    createConnection({ ipAddress: '127.0.0.1', port: 51826 }, '031-45-154', body)
+
+    const message: string = writeSpy.mock.calls[0][0]
+    const sent = message.slice(message.indexOf('\r\n\r\n') + 4)
+    expect(sent).toBe(JSON.stringify(body))
+  })
 })
