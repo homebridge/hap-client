@@ -30,6 +30,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - refactor(types): type the events of the client and the monitor
 - docs: correct stale and misplaced comments and warn that getService takes a non-unique iid
 - docs(examples): limit the example to its bridge with instanceAllowList, the option that exists
+- docs(readme): correct the examples and describe the options, methods, errors and events
 
 ### Homebridge Dependencies
 
