@@ -40,6 +40,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - test: run the client against a real hap-nodejs bridge on the loopback address
 - docs(changelog): list the dependabot update which had no entry
 - feat: export HapCharacteristicError and give it the aid, iid and status of the characteristic
+- fix: log that the monitor is connected when the socket has connected, not when it starts to
 
 ### Homebridge Dependencies
 

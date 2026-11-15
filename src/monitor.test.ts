@@ -136,6 +136,24 @@ describe('hapMonitor', () => {
     })
   })
 
+  describe('connection logging', () => {
+    it('logs Connected when the socket has connected, not when the connection attempt starts', () => {
+      const debug = vi.fn()
+      const m = new HapMonitor(null, debug, '031-45-154', [
+        buildService('EE:EE:EE:EE:EE:EE'),
+      ])
+      const connected = () => debug.mock.calls.filter(([line]) => String(line).endsWith('Connected')).length
+
+      expect(connected()).toBe(0)
+
+      ;(m as any).evInstances[0].socket.emit('connect')
+
+      expect(connected()).toBe(1)
+
+      m.finish()
+    })
+  })
+
   describe('error logging', () => {
     it('should call logger.error rather than logger.log when error() is invoked', () => {
       const logSpy = vi.fn()
