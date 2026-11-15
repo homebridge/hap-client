@@ -420,6 +420,26 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
     expect(updates).toHaveLength(3)
   })
 
+  it('emits no service-update for an event which names no known characteristic', () => {
+    const updates: any[][] = []
+    monitor.on('service-update', services => updates.push(services))
+    const body = JSON.stringify({
+      characteristics: [
+        { aid: 1, iid: 99, value: true },
+      ],
+    })
+    const event = [
+      'EVENT/1.0 200 OK',
+      `Content-Length: ${Buffer.byteLength(body, 'utf8')}`,
+      '',
+      body,
+    ].join('\r\n')
+
+    ;(monitor as any).evInstances[0].socket.emit('data', Buffer.from(event, 'utf8'))
+
+    expect(updates).toEqual([])
+  })
+
   it('sets a characteristic status to zero when an event is received', () => {
     const service = (monitor as any).services[0]
     const characteristic = service.serviceCharacteristics[0]

@@ -264,6 +264,12 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
             }
           }
 
+          // An event which names no characteristic the monitor knows changes
+          // nothing, so there is nothing to report.
+          if (!response.size) {
+            return
+          }
+
           // A single event can update several characteristics on the same
           // service. Emit each affected service once, after all its values have
           // been applied.
