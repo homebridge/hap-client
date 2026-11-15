@@ -94,7 +94,7 @@ hapClient.destroy() // stop everything and close the sockets
 
 ### Errors
 
-- A read which the accessory answers with a HAP error status rejects with an error whose `name` is `HapCharacteristicError`. The characteristic keeps its last good `value`, and its `status` holds the HAP status.
+- A read which the accessory answers with a HAP error status rejects with a `HapCharacteristicError` (exported; it has `aid`, `iid` and `status`, and its `name` is `HapCharacteristicError`). The characteristic keeps its last good `value`, and its `status` holds the HAP status.
 - A write which the bridge refuses (the plugin's set handler failed, the value is read-only) rejects with a `HapCharacteristicError` too.
 - A write or snapshot request refused because of the pin rejects with an error which names the pin.
 - A read from a bridge which can not be reached is logged and resolves with `undefined`.

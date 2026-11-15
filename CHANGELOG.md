@@ -39,6 +39,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - chore: fix on save with eslint instead of tslint in the editor settings
 - test: run the client against a real hap-nodejs bridge on the loopback address
 - docs(changelog): list the dependabot update which had no entry
+- feat: export HapCharacteristicError and give it the aid, iid and status of the characteristic
 
 ### Homebridge Dependencies
 
