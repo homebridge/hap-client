@@ -6,6 +6,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 ### Changed
 
+- chore(deps-dev): bump the packages group across 1 directory with 4 updates
 - fix: report a write to a write-only characteristic as done instead of failing on the read back
 - fix: reject a write the bridge refused instead of reporting it as done
 - fix: log an error of the mDNS socket instead of letting it crash the process
@@ -37,6 +38,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: state the supported node.js versions in the engines field
 - chore: fix on save with eslint instead of tslint in the editor settings
 - test: run the client against a real hap-nodejs bridge on the loopback address
+- docs(changelog): list the dependabot update which had no entry
 
 ### Homebridge Dependencies
 
