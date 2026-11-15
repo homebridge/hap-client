@@ -63,7 +63,7 @@ hapClient.on('instance-discovered', async (instance) => {
 | `discoveryTimeout`   | How long a discovery runs, in milliseconds. 60000 by default.                                                                                                       |
 | `autoStartDiscovery` | Start discovery when the client is created. `true` by default.                                                                                                      |
 | `instanceAllowList`  | Usernames of the only bridges to use.                                                                                                                               |
-| `instanceDenyList`   | Usernames of bridges to ignore. (`instanceBlacklist` is the old name and still works.)                                                                              |
+| `instanceDenyList`   | Usernames of bridges to ignore. (`instanceBlacklist` is the old name and still works; both lists are used.)                                                         |
 
 ### Discovery
 

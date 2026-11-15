@@ -425,11 +425,15 @@ export class HapClient extends EventEmitter<HapClientEvents> {
         return true
       }
 
-      // The deny list, or the old name of that option when it is not set
-      const denyList = this.config.instanceDenyList ?? this.config.instanceBlacklist
+      // The deny list and the old name of that option together, so an empty
+      // list under one name does not hide a filled list under the other
+      const denyList = [
+        ...this.config.instanceDenyList ?? [],
+        ...this.config.instanceBlacklist ?? [],
+      ]
 
       // check instance is not on the denylist
-      if (denyList && denyList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
+      if (denyList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
         this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} found in denylist. Disregarding.`)
         return
       }

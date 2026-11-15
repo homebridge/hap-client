@@ -42,6 +42,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - feat: export HapCharacteristicError and give it the aid, iid and status of the characteristic
 - fix: log that the monitor is connected when the socket has connected, not when it starts to
 - fix: emit no service-update for an event which names no known characteristic
+- fix: use instanceDenyList and instanceBlacklist together so an empty one does not hide the other
 
 ### Homebridge Dependencies
 
