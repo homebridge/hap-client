@@ -49,7 +49,7 @@ export interface Config {
 }
 
 export class HapClient extends EventEmitter {
-  private bonjour = new Bonjour()
+  private readonly bonjour = this.createBonjour()
   private browser: InstanceType<typeof Bonjour.Browser> | undefined
   private discoveryInProgress = false
 
@@ -133,6 +133,23 @@ export class HapClient extends EventEmitter {
     if (this.config.autoStartDiscovery) {
       this.startDiscovery()
     }
+  }
+
+  /**
+   * bonjour-service opens the mDNS socket right away and leaves its 'error'
+   * event without a listener, so a socket that can not be opened (port 5353
+   * taken or not permitted) would stop the whole process. Log it instead:
+   * discovery then finds nothing, but the host application keeps running.
+   */
+  private createBonjour(): Bonjour {
+    const onError = (e: unknown) => {
+      this.error(`[HapClient] Discovery :: mDNS socket error: ${e instanceof Error
+        ? e.message
+        : String(e)}`)
+    }
+    const bonjour = new Bonjour({}, onError)
+    ;(bonjour as unknown as { server?: { mdns?: EventEmitter } }).server?.mdns?.on('error', onError)
+    return bonjour
   }
 
   /**
