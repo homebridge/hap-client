@@ -119,8 +119,9 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
       instance.monitoring = true
       instance.recvBuffer = Buffer.alloc(0)
 
-      this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`)
-
+      socket.on('connect', () => {
+        this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connected`)
+      })
       socket.on('data', (data) => {
         // Accumulate raw bytes. Decoding per-chunk would corrupt a multibyte
         // UTF-8 character that happens to be split across two TCP packets.
