@@ -1025,8 +1025,10 @@ export class HapClient extends EventEmitter {
       if (!characteristic) {
         throw new Error(`Characteristic ${type} not found in service ${service.serviceName}`)
       }
-      if (type === 'Configured Name') {
-        // Handle "Configured Name" case explicitly if needed
+      if (type === 'ConfiguredName') {
+        // A write of several values never renames the service. The check used
+        // to compare with 'Configured Name', which no type is called, so it
+        // never matched.
         return null
       }
       return {
