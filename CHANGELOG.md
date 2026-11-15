@@ -8,6 +8,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 
 - fix: report a write to a write-only characteristic as done instead of failing on the read back
 - fix: reject a write the bridge refused instead of reporting it as done
+- fix: log an error of the mDNS socket instead of letting it crash the process
 
 ### Homebridge Dependencies
 
