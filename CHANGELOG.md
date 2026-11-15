@@ -29,6 +29,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: turn on typescript strict mode
 - refactor(types): type the events of the client and the monitor
 - docs: correct stale and misplaced comments and warn that getService takes a non-unique iid
+- docs(examples): limit the example to its bridge with instanceAllowList, the option that exists
 
 ### Homebridge Dependencies
 
