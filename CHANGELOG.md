@@ -19,6 +19,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: leave ConfiguredName out of a write of several characteristics as the check intended
 - perf: build no stack trace for a debug line while debug logging is off
 - perf: read the accessories of every bridge at the same time instead of one after another
+- refactor: replace the borrowed http message parser with a small typed one
 
 ### Homebridge Dependencies
 
