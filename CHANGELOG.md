@@ -2,6 +2,16 @@
 
 All notable changes to `@homebridge/hap-client` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v5.4.1 (Pending Release)
+
+### Changed
+
+- fix: report a write to a write-only characteristic as done instead of failing on the read back
+
+### Homebridge Dependencies
+
+- `@homebridge/hap-nodejs` @ `v2.2.4-beta.7`
+
 ## v5.4.0 (2026-10-31)
 
 ### Breaking Changes
