@@ -33,6 +33,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - docs(readme): correct the examples and describe the options, methods, errors and events
 - build: type-check the test files with a new typecheck script
 - build: stop publishing source maps which point at source files the package does not hold
+- build: drop the decorator options and the excluded folders which nothing uses from the tsconfig
 
 ### Homebridge Dependencies
 
