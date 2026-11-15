@@ -26,9 +26,8 @@ export function createConnection(instance, pin: string, body, onPacket?: (packet
   const message = _buildMessage({
     method: 'PUT',
     url: `http://${instance.ipAddress}:${instance.port}/characteristics`,
-    maxAttempts: 1, // (default) try 5 times
     headers: {
-      'Content-Type': 'Application/json',
+      'Content-Type': 'application/json',
       'authorization': pin,
       'connection': 'keep-alive',
     },
@@ -46,7 +45,7 @@ function _headersToString(headers) {
   for (const header of Object.keys(headers)) {
     response = `${response + header}: ${headers[header]}\r\n`
   }
-  return (response)
+  return response
 }
 
 function _buildMessage(request) {
@@ -64,6 +63,5 @@ function _buildMessage(request) {
   } else {
     message = `${message}\r\n\r\n`
   }
-  // debug("Message ->", message);
-  return (message)
+  return message
 }
