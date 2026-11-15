@@ -21,7 +21,7 @@ const client = new HapClient({
     debug: true,
     debugRawPackets: true,
     discoveryTimeout: 5000,
-    instanceWhitelist: ['69:62:B7:AE:38:D4'],
+    instanceAllowList: ['69:62:B7:AE:38:D4'],
   },
 })
 
@@ -58,7 +58,7 @@ client.once('discovery-ended', async () => {
         .filter(characteristic => characteristic.ev && characteristic.canRead)
         .map(async (characteristic) => {
           try {
-            console.log(`Retrieving lastest value for ${characteristic.description} ${JSON.stringify(await characteristic.getValue(), null, 2)}`)
+            console.log(`Retrieving latest value for ${characteristic.description} ${JSON.stringify(await characteristic.getValue(), null, 2)}`)
           } catch (error) {
             console.warn(`Could not refresh ${service.serviceName} / ${characteristic.type}:`, error)
           }
