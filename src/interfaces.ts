@@ -81,6 +81,11 @@ export interface ServiceType {
   values: any
   instance: HapInstance
   uniqueId?: string
+  /**
+   * The unique id as it was built up to v5.4.0. Two services could share one,
+   * so only use it to move data saved under the old id over to `uniqueId`.
+   */
+  legacyUniqueId?: string
   nameBasedUniqueId?: string
 }
 

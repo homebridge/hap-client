@@ -13,6 +13,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: notice a changed configuration number or port of a known bridge while discovery runs
 - fix: turn on tcp keep-alive for the monitor so a connection to a vanished bridge gets closed
 - fix: give up on a request to a bridge after 15 seconds, or 30 for a camera snapshot
+- fix: stop two services sharing a uniqueId and keep the old id as legacyUniqueId
 
 ### Homebridge Dependencies
 

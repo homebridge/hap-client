@@ -788,8 +788,21 @@ export class HapClient extends EventEmitter {
             instance: accessory.instance,
           }
 
-          // generate unique id for service
+          // generate unique id for service. The parts are separated, so that
+          // accessory 1 service 18 and accessory 11 service 8 differ.
           service.uniqueId = createHash('sha256')
+            .update([
+              service.instance.username,
+              service.aid,
+              service.iid,
+              service.type,
+            ].join('|'))
+            .digest('hex')
+
+          // the unique id as it was built up to v5.4.0, without separators (so
+          // two services could share one). Only for moving data that was saved
+          // under the old id over to the new one.
+          service.legacyUniqueId = createHash('sha256')
             .update(`${service.instance.username}${service.aid}${service.iid}${service.type}`)
             .digest('hex')
 

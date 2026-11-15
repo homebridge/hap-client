@@ -1796,3 +1796,78 @@ describe('hapClient request time limits', () => {
     expect(timeout.mock.calls.map(([ms]) => ms)).toEqual(mockFetch.mock.calls.map(() => limit))
   })
 })
+
+describe('hapClient getAllServices - unique ids', () => {
+  let hapClient: HapClient
+
+  const switchService = (iid: number) => ({
+    iid,
+    type: '49',
+    characteristics: [
+      {
+        iid: iid + 1,
+        type: '25',
+        description: 'On',
+        value: false,
+        format: 'bool',
+        perms: ['pr', 'pw', 'ev'],
+      },
+    ],
+  })
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    ;(hapClient as any).instances = [
+      {
+        name: 'homebridge',
+        username: 'AA:BB:CC:DD:EE:FF',
+        ipAddress: '127.0.0.1',
+        port: 51826,
+        services: [],
+        connectionFailedCount: 0,
+        configurationNumber: '1',
+      },
+    ]
+    // Accessory 1 service 18 and accessory 11 service 8: joined without a
+    // separator both read "118".
+    mockFetch.mockResolvedValue(fetchResponse({
+      accessories: [
+        {
+          aid: 1,
+          services: [
+            switchService(18),
+          ],
+        },
+        {
+          aid: 11,
+          services: [
+            switchService(8),
+          ],
+        },
+      ],
+    }))
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('gives two services whose accessory and service numbers join to the same text different unique ids', async () => {
+    const [first, second] = await hapClient.getAllServices()
+
+    expect(first.uniqueId).toMatch(/^[0-9a-f]{64}$/)
+    expect(second.uniqueId).toMatch(/^[0-9a-f]{64}$/)
+    expect(first.uniqueId).not.toBe(second.uniqueId)
+  })
+
+  it('keeps the id as it was built before in legacyUniqueId', async () => {
+    const [first, second] = await hapClient.getAllServices()
+
+    // sha256 of 'AA:BB:CC:DD:EE:FF118Switch', the id both services had up to v5.4.0
+    expect(first.legacyUniqueId).toBe('11f778f3a72ab495aaf92329caca841c2ee5d51f3288cfa4afefeda6e163ba09')
+    expect(second.legacyUniqueId).toBe(first.legacyUniqueId)
+  })
+})
