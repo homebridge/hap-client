@@ -34,6 +34,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: type-check the test files with a new typecheck script
 - build: stop publishing source maps which point at source files the package does not hold
 - build: drop the decorator options and the excluded folders which nothing uses from the tsconfig
+- build: state the supported node.js versions in the engines field
 
 ### Homebridge Dependencies
 
