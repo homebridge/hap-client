@@ -647,21 +647,20 @@ export class HapClient extends EventEmitter {
       this.debug('[HapClient] Cannot load accessories. No Homebridge instances have been discovered.')
     }
 
-    const accessories = []
-    // Iterate a snapshot: the catch below can splice the failing instance out of
-    // this.instances, which shifts the next one into its index and makes the
-    // for..of iterator step over it - so the bridge immediately after an evicted
-    // one silently contributed nothing to this call.
-    for (const instance of only
+    // A snapshot of the pool: the catch below can remove a failing instance
+    // from this.instances while the other requests are still under way. All
+    // bridges are asked at the same time, and Promise.all keeps their order.
+    const targets = only
       ? [only]
-      : [...this.instances]) {
+      : [...this.instances]
+    const perInstance = await Promise.all(targets.map(async (instance) => {
       try {
         const resp: HapAccessoriesRespType = await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/accessories`)
         instance.connectionFailedCount = 0
         for (const accessory of resp.accessories) {
           accessory.instance = instance
-          accessories.push(accessory)
         }
+        return resp.accessories
       } catch {
         instance.connectionFailedCount++
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Failed to connect`)
@@ -673,9 +672,10 @@ export class HapClient extends EventEmitter {
             this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Removed From Instance Pool`)
           }
         }
+        return []
       }
-    }
-    return accessories
+    }))
+    return perInstance.flat()
   }
 
   /**
