@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { EventEmitter } from 'node:events'
+import { isIPv4 } from 'node:net'
 
 import Bonjour from 'bonjour-service'
 import decamelize from 'decamelize'
@@ -56,8 +57,6 @@ function isHomebridgeInstance(instance: { name?: string }): boolean {
 const REQUEST_TIMEOUT_MS = 15000
 /** A camera snapshot can take longer than a normal request. */
 const RESOURCE_TIMEOUT_MS = 30000
-
-const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
 export interface Config {
   debug?: boolean
@@ -344,8 +343,7 @@ export class HapClient extends EventEmitter {
     })
     this.browser = browser
 
-    // start matching services
-    browser.start()
+    // bonjour-service starts a browser as it creates it
     this.debug(`[HapClient] Discovery :: Started`)
 
     // stop discovery after 60 seconds
@@ -447,7 +445,7 @@ export class HapClient extends EventEmitter {
       let addresses: string[] = Array.isArray(device.addresses)
         ? device.addresses
         : []
-      if (!addresses.some(ip => IPV4_REGEX.test(ip)) && device.host) {
+      if (!addresses.some(ip => isIPv4(ip)) && device.host) {
         try {
           const resolved = await lookup(device.host, { all: true, family: 4 })
           const resolvedAddresses = resolved.map(entry => entry.address)
@@ -467,7 +465,7 @@ export class HapClient extends EventEmitter {
       }
 
       for (const ip of addresses) {
-        if (IPV4_REGEX.test(ip)) {
+        if (isIPv4(ip)) {
           try {
             this.debug(`[HapClient] Discovery :: Testing ${instance.username} via http://${ip}:${device.port}/accessories`)
             const test: HapAccessoriesRespType = await this.fetchJson(`http://${ip}:${device.port}/accessories`, {
@@ -818,20 +816,20 @@ export class HapClient extends EventEmitter {
 
           /* Helper function to trigger a call to the accessory to get all the characteristic values */
           service.refreshCharacteristics = () => {
-            return this.refreshServiceCharacteristics.bind(this)(service)
+            return this.refreshServiceCharacteristics(service)
           }
 
           /* Helper function to set the value of a characteristic */
           service.setCharacteristic = (iid: number, value: number | string | boolean) => {
-            return this.setCharacteristic.bind(this)(service, iid, value)
+            return this.setCharacteristic(service, iid, value)
           }
 
           service.setCharacteristicByType = (type: string, value: number | string | boolean) => {
-            return this.setCharacteristicByType.bind(this)(service, type, value)
+            return this.setCharacteristicByType(service, type, value)
           }
 
           service.setCharacteristicsByTypes = (payload: Record<string, string | number | boolean>) => {
-            return this.setCharacteristicsByTypes.bind(this)(service, payload)
+            return this.setCharacteristicsByTypes(service, payload)
           }
 
           /* Helper function to return a characteristic by its type name */
@@ -841,18 +839,18 @@ export class HapClient extends EventEmitter {
 
           if (service.type === 'CameraRTPStreamManagement') {
             service.getResource = (body: ResourceRequestType) => {
-              return this.getResource.bind(this)(service, body)
+              return this.getResource(service, body)
             }
           }
           service.serviceCharacteristics.forEach((c) => {
             /* Helper function to set the value of a characteristic */
             c.setValue = async (value: number | string | boolean) => {
-              return await this.setCharacteristic.bind(this)(service, c.iid, value)
+              return await this.setCharacteristic(service, c.iid, value)
             }
 
             /* Helper function to get the value of a characteristic from the accessory */
             c.getValue = async () => {
-              return await this.getCharacteristic.bind(this)(service, c.iid)
+              return await this.getCharacteristic(service, c.iid)
             }
 
             /* set the values for each characteristic type in an easy-to-access object */

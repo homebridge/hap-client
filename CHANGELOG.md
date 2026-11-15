@@ -22,6 +22,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - refactor: replace the borrowed http message parser with a small typed one
 - refactor: drop the axios fields from the raw packet logging and build http errors in one place
 - refactor: handle a failed write or resource request in one place instead of three
+- refactor: drop a second browser start, needless bind calls and a hand-written ipv4 pattern
 
 ### Homebridge Dependencies
 
