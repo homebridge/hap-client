@@ -1928,3 +1928,89 @@ describe('hapClient debug logging cost', () => {
     expect(debug).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^a debug line @ /))
   })
 })
+
+describe('hapClient getAllServices - several bridges', () => {
+  let hapClient: HapClient
+
+  const bridge = (ipAddress: string) => ({
+    name: 'homebridge',
+    username: `AA:BB:CC:DD:EE:${ipAddress.slice(-2)}`,
+    ipAddress,
+    port: 51826,
+    services: [],
+    connectionFailedCount: 0,
+    configurationNumber: '1',
+  })
+  const accessories = (name: string) => ({
+    accessories: [
+      {
+        aid: 2,
+        services: [
+          {
+            iid: 8,
+            type: '49',
+            characteristics: [
+              {
+                iid: 9,
+                type: '23',
+                description: 'Name',
+                value: name,
+                format: 'string',
+                perms: ['pr'],
+              },
+              {
+                iid: 10,
+                type: '25',
+                description: 'On',
+                value: false,
+                format: 'bool',
+                perms: ['pr', 'pw', 'ev'],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    ;(hapClient as any).instances = [
+      bridge('10.0.0.11'),
+      bridge('10.0.0.12'),
+      bridge('10.0.0.13'),
+    ]
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('asks every bridge at the same time and keeps the bridges in order', async () => {
+    const answers = new Map<string, () => void>()
+    mockFetch.mockImplementation(async (url: string) => {
+      const host = new URL(url).hostname
+      await new Promise<void>((resolve) => {
+        answers.set(host, resolve)
+      })
+      return fetchResponse(accessories(`Switch on ${host}`))
+    })
+
+    const result = hapClient.getAllServices()
+    // All three requests are out before any bridge has answered
+    await vi.waitFor(() => expect(answers.size).toBe(3))
+    // The last bridge answers first
+    answers.get('10.0.0.13')!()
+    answers.get('10.0.0.12')!()
+    answers.get('10.0.0.11')!()
+
+    expect((await result).map(service => service.serviceName)).toEqual([
+      'Switch on 10.0.0.11',
+      'Switch on 10.0.0.12',
+      'Switch on 10.0.0.13',
+    ])
+  })
+})

@@ -18,6 +18,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: send no stray bytes after the body of the monitor subscription request
 - fix: leave ConfiguredName out of a write of several characteristics as the check intended
 - perf: build no stack trace for a debug line while debug logging is off
+- perf: read the accessories of every bridge at the same time instead of one after another
 
 ### Homebridge Dependencies
 
