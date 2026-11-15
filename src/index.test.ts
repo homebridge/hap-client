@@ -367,6 +367,32 @@ describe('hapClient bonjour up handler - missing id', () => {
   })
 })
 
+describe('hapClient bonjour up handler - deny list under both names', () => {
+  it('ignores a bridge on instanceBlacklist when instanceDenyList is set but empty', async () => {
+    const hapClient = new HapClient({
+      pin: '123-45-678',
+      config: {
+        autoStartDiscovery: false,
+        instanceDenyList: [],
+        instanceBlacklist: ['AA:BB:CC:DD:EE:FF'],
+      },
+    })
+    hapClient.startDiscovery()
+    const upHandler = mockBrowserOn.mock.calls.find(([event]) => event === 'up')?.[1]
+    mockFetch.mockResolvedValue(fetchResponse({ accessories: [] }))
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': 'aa:bb:cc:dd:ee:ff', 'md': 'Test Bridge' },
+      port: 51826,
+      addresses: ['127.0.0.1'],
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect((hapClient as any).instances).toEqual([])
+    hapClient.destroy()
+  })
+})
+
 describe('hapClient bonjour up handler - empty addresses (#40)', () => {
   let hapClient: HapClient
   let upHandler: (device: any) => Promise<void>
