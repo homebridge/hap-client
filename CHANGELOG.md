@@ -48,6 +48,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: keep the doc comments in the published type files
 - build: run the typecheck before the tests and before a publish
 - ci: keep the npm publish token to the publish job, stay on npm 11 and pass refs as env
+- ci: pin the third-party actions to a commit
 
 ### Homebridge Dependencies
 
