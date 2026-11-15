@@ -193,7 +193,6 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
 
   refreshMonitorConnection(refreshInstance: HapEvInstance) {
     this.debug(`[HapClient] [${refreshInstance.ipAddress}:${refreshInstance.port} (${refreshInstance.username})] Refreshing Monitor`)
-    // console.log('this.evInstances', this.evInstances);
     const instance = this.evInstances.find(x => x.username === refreshInstance.username)
     if (instance) {
       instance.socket?.destroy()
