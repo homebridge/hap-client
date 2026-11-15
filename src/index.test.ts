@@ -1387,3 +1387,98 @@ describe('hapClient per-bridge pins (#2936)', () => {
     expect(warn).not.toHaveBeenCalled()
   })
 })
+
+describe('hapClient writes', () => {
+  let hapClient: HapClient
+
+  function buildService() {
+    const instance = {
+      name: 'homebridge',
+      username: 'AA:BB:CC:DD:EE:FF',
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    const characteristic = (iid: number, type: string, perms: string[]) => ({
+      aid: 2,
+      iid,
+      uuid: '00000000-0000-1000-8000-0026BB765291',
+      type,
+      serviceType: 'Television',
+      serviceName: 'TV',
+      description: type,
+      value: 0,
+      format: 'uint8',
+      perms,
+      canRead: perms.includes('pr'),
+      canWrite: perms.includes('pw'),
+      ev: perms.includes('ev'),
+    })
+    return {
+      aid: 2,
+      iid: 8,
+      uuid: '000000D8-0000-1000-8000-0026BB765291',
+      type: 'Television',
+      humanType: 'Television',
+      serviceName: 'TV',
+      serviceCharacteristics: [
+        characteristic(10, 'Active', ['pr', 'pw', 'ev']),
+        characteristic(13, 'RemoteKey', ['pw']),
+      ],
+      accessoryInformation: {},
+      values: {},
+      instance,
+    } as any
+  }
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      logger: {
+        error: vi.fn(),
+        warn: vi.fn(),
+      },
+      config: { autoStartDiscovery: false },
+    })
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('does not read back a write-only characteristic after writing it', async () => {
+    const service = buildService()
+    // What HAP-NodeJS answers: 204 to the write, and a write-only status to any read
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse('', 204, 'No Content')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 13, status: -70405 },
+          ],
+        }, 207, 'Multi-Status'))
+
+    const result = await hapClient.setCharacteristic(service, 13, 4)
+
+    expect(result).toBe(service.serviceCharacteristics[1])
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0][1].method).toBe('PUT')
+  })
+
+  it('still reads back a readable characteristic after writing it', async () => {
+    const service = buildService()
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => options?.method === 'PUT'
+      ? fetchResponse('', 204, 'No Content')
+      : fetchResponse({
+          characteristics: [
+            { aid: 2, iid: 10, value: 1 },
+          ],
+        }))
+
+    const result = await hapClient.setCharacteristic(service, 10, 1)
+
+    expect(result.value).toBe(1)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+})

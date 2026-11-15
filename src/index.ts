@@ -893,6 +893,12 @@ export class HapClient extends EventEmitter {
           ],
         }),
       })
+      // A write-only characteristic (a remote key, identify) answers a read
+      // with an error status, which would report a write that worked as failed.
+      const written = service.serviceCharacteristics.find(x => x.iid === iid)
+      if (written && !written.canRead) {
+        return written
+      }
       return this.getCharacteristic(service, iid)
     } catch (e) {
       this.error(`[HapClient] [${service.instance.ipAddress}:${service.instance.port} (${service.instance.username})] `
