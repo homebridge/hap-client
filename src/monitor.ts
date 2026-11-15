@@ -11,6 +11,12 @@ import { CharacteristicValue, HapClientLogger, HapEvInstance, HapInstance, HapMo
 // reset rather than retaining bytes indefinitely.
 const MAX_RECV_BUFFER_BYTES = 2 * 1024 * 1024
 
+// How long the monitor waits before it opens a closed connection again, one
+// entry per try in a row. A bridge that restarts on the same port is back
+// within these; after the last try the monitor waits for discovery to name the
+// bridge again, so a bridge that is gone for good is not tried for ever.
+const RECONNECT_DELAYS_MS = [5000, 15000, 30000, 60000, 60000]
+
 /**
  * Locate the end of the next complete HTTP/EVENT message in `buffer`.
  * Returns -1 when the buffer does not yet contain a full message.
@@ -63,6 +69,9 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
   private readonly logger: HapClientLogger | null | undefined
   private readonly debug: (arg0: string) => void
   private readonly debugPacket?: (direction: 'received' | 'sent', instance: HapEvInstance, packet: Buffer) => void
+  /** The tries in a row to reopen a bridge's connection, and the timer of the next one. */
+  private readonly reconnects = new Map<HapEvInstance, { attempts: number, timer?: ReturnType<typeof setTimeout> }>()
+  private finished = false
 
   constructor(
     logger: HapClientLogger | null | undefined,
@@ -129,6 +138,8 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
           ? data
           : Buffer.from(data)
         this.debugPacket?.('received', instance, chunk)
+        // The bridge answered, so the connection works: start counting afresh
+        this.reconnects.delete(instance)
         instance.recvBuffer = instance.recvBuffer?.length
           ? Buffer.concat([instance.recvBuffer, chunk])
           : chunk
@@ -164,6 +175,9 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
         socket.destroy()
         socket.removeAllListeners()
         this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] closed: ${hadError}`)
+        // Only a close the monitor did not ask for gets here: finish(), a
+        // refresh and an update remove this listener as they destroy the socket
+        this.scheduleReconnect(instance)
       })
       socket.on('error', (error) => { // Even though this is redundant with the close event, it's necessary to catch the error event here
         this.emit('monitor-error', instance, error)
@@ -178,8 +192,45 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
     }
   }
 
+  /**
+   * Open a closed connection again after a wait. Without this the bridge sent
+   * no live update until a discovery run named it again, which only happens
+   * when the caller starts one.
+   */
+  private scheduleReconnect(instance: HapEvInstance) {
+    if (this.finished || !this.evInstances.includes(instance)) {
+      return
+    }
+    const state = this.reconnects.get(instance) ?? { attempts: 0 }
+    this.reconnects.set(instance, state)
+    const where = `[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})]`
+    if (state.attempts >= RECONNECT_DELAYS_MS.length) {
+      this.debug(`${where} Not reconnecting again, waiting for discovery to find the bridge`)
+      return
+    }
+    const delay = RECONNECT_DELAYS_MS[state.attempts]
+    state.attempts++
+    this.debug(`${where} Reconnecting in ${delay / 1000} seconds (try ${state.attempts} of ${RECONNECT_DELAYS_MS.length})`)
+    clearTimeout(state.timer)
+    state.timer = setTimeout(() => {
+      state.timer = undefined
+      this.connectInstance(instance)
+      this.emit('monitor-refresh', instance)
+    }, delay)
+    // A pending reconnect must not keep the process alive
+    state.timer.unref()
+  }
+
+  /** Forget a pending reconnect: the caller connects by itself, or the bridge is no longer watched. */
+  private cancelReconnect(instance: HapEvInstance) {
+    clearTimeout(this.reconnects.get(instance)?.timer)
+    this.reconnects.delete(instance)
+  }
+
   finish() {
+    this.finished = true
     for (const instance of this.evInstances) {
+      this.cancelReconnect(instance)
       if (instance.socket) {
         try {
           instance.socket.destroy()
@@ -196,6 +247,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
     this.debug(`[HapClient] [${refreshInstance.ipAddress}:${refreshInstance.port} (${refreshInstance.username})] Refreshing Monitor`)
     const instance = this.evInstances.find(x => x.username === refreshInstance.username)
     if (instance) {
+      this.cancelReconnect(instance)
       instance.socket?.destroy()
       instance.socket?.removeAllListeners()
       instance.port = refreshInstance.port
@@ -327,6 +379,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
     if (!evCharacteristics.length) {
       // Nothing left to watch on this bridge
       if (instance) {
+        this.cancelReconnect(instance)
         instance.socket?.destroy()
         instance.socket?.removeAllListeners()
         instance.monitoring = false
@@ -341,6 +394,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
       this.evInstances.push(instance)
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Added to the monitor`)
     } else {
+      this.cancelReconnect(instance)
       instance.socket?.destroy()
       instance.socket?.removeAllListeners()
     }

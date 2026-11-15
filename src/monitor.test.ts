@@ -212,6 +212,67 @@ describe('hapMonitor', () => {
   })
 })
 
+describe('hapMonitor - reconnect after a close it did not ask for', () => {
+  const username = 'AB:AB:AB:AB:AB:AB'
+  let monitor: HapMonitor
+  const socketOf = () => (monitor as any).evInstances[0].socket
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    monitor = new HapMonitor(null, vi.fn(), '031-45-154', [
+      buildService(username),
+    ])
+  })
+
+  afterEach(() => {
+    monitor.finish()
+    vi.useRealTimers()
+  })
+
+  it('opens the connection again 5 seconds after the socket closed', () => {
+    const refreshed = vi.fn()
+    monitor.on('monitor-refresh', refreshed)
+
+    socketOf().emit('close', false)
+    vi.advanceTimersByTime(4999)
+    expect(createConnection).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(1)
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    expect(refreshed).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops after five tries in a row, and counts afresh once the bridge has answered', () => {
+    for (let i = 0; i < 6; i++) {
+      socketOf().emit('close', true)
+      vi.advanceTimersByTime(60000)
+    }
+    // the first connection and five more
+    expect(createConnection).toHaveBeenCalledTimes(6)
+
+    // discovery names the bridge again, it answers, and later the socket closes
+    monitor.refreshMonitorConnection({ ...(monitor as any).evInstances[0] })
+    socketOf().emit('data', Buffer.from('HTTP/1.1 204 No Content\r\n\r\n'))
+    socketOf().emit('close', false)
+    vi.advanceTimersByTime(5000)
+    expect(createConnection).toHaveBeenCalledTimes(8)
+  })
+
+  it('does not reconnect after finish(), a refresh or an update took over', () => {
+    socketOf().emit('close', false)
+    monitor.refreshMonitorConnection({ ...(monitor as any).evInstances[0] })
+    expect(createConnection).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(60000)
+    expect(createConnection).toHaveBeenCalledTimes(2)
+
+    socketOf().emit('close', false)
+    monitor.finish()
+    vi.advanceTimersByTime(60000)
+    expect(createConnection).toHaveBeenCalledTimes(2)
+  })
+})
+
 /**
  * A bridge that registers after the monitor was built used to be invisible to
  * it: `refreshMonitorConnection` only reconnected bridges it already knew, and
