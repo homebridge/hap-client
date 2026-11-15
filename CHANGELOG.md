@@ -54,6 +54,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: resolve a write that worked when the read back finds the accessory not responding
 - fix: open no connection from a monitor after finish() was called
 - fix: give the characteristics of a service with an empty name the same name as the service
+- docs: make the monitor once in the readme example and name the moved bridge and finish()
 
 ### Homebridge Dependencies
 
