@@ -1525,3 +1525,115 @@ describe('hapClient writes', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('hapClient discovery probes that finish late', () => {
+  let hapClient: HapClient
+  let upHandler: (device: any) => Promise<void>
+  let answer: (() => void) | undefined
+
+  const device = {
+    txt: { 'c#': '1', 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'homebridge' },
+    port: 51826,
+    host: 'pi.local',
+    addresses: ['192.168.1.10'],
+  }
+
+  /** The bridge answers every request, but the first one only once `answer()` is called. */
+  function holdFirstRequest() {
+    let first = true
+    mockFetch.mockImplementation(async (_url: string, options?: { method?: string }) => {
+      if (first) {
+        first = false
+        await new Promise<void>((resolve) => {
+          answer = resolve
+        })
+      }
+      return options?.method === 'PUT'
+        ? fetchResponse('', 204, 'No Content')
+        : fetchResponse({ accessories: [] })
+    })
+  }
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    hapClient.startDiscovery()
+    upHandler = mockBrowserOn.mock.calls.find(([event]) => event === 'up')?.[1]
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it.each([
+    [
+      'resetInstancePool',
+      () => hapClient.resetInstancePool(),
+    ],
+    [
+      'stopDiscovery',
+      () => hapClient.stopDiscovery(),
+    ],
+    [
+      'destroy',
+      () => hapClient.destroy(),
+    ],
+  ])('does not register a bridge whose probe finishes after %s()', async (_name, interrupt) => {
+    const discovered = vi.fn()
+    hapClient.on('instance-discovered', discovered)
+    holdFirstRequest()
+
+    const probe = upHandler(device)
+    await vi.waitFor(() => expect(answer).toBeDefined())
+    interrupt()
+    answer!()
+    await probe
+
+    expect((hapClient as any).instances).toEqual([])
+    expect(discovered).not.toHaveBeenCalled()
+  })
+
+  it('registers a bridge once when two probes of it overlap', async () => {
+    const discovered = vi.fn()
+    hapClient.on('instance-discovered', discovered)
+    holdFirstRequest()
+
+    const first = upHandler(device)
+    await vi.waitFor(() => expect(answer).toBeDefined())
+    const second = upHandler(device)
+    await second
+    answer!()
+    await first
+
+    expect((hapClient as any).instances).toHaveLength(1)
+    expect(discovered).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not hand a bridge to the monitor once the client was destroyed', async () => {
+    const updateInstance = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      updateInstance,
+      refreshMonitorConnection: vi.fn(),
+      finish: vi.fn(),
+    }
+    holdFirstRequest()
+
+    const sync = (hapClient as any).syncMonitorInstance({
+      name: 'homebridge',
+      username: 'AA:BB:CC:DD:EE:FF',
+      ipAddress: '192.168.1.10',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: '1',
+    })
+    await vi.waitFor(() => expect(answer).toBeDefined())
+    hapClient.destroy()
+    answer!()
+    await sync
+
+    expect(updateInstance).not.toHaveBeenCalled()
+  })
+})
