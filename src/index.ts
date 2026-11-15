@@ -306,7 +306,11 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     }
   }
 
-  // Example usage in methods
+  /**
+   * Forget every known bridge and search again after six seconds. For when
+   * bridges restart (their ports change), for example after Homebridge itself
+   * was restarted.
+   */
   public resetInstancePool() {
     if (this.discoveryInProgress) {
       this.browser?.stop()
@@ -366,7 +370,7 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     // bonjour-service starts a browser as it creates it
     this.debug(`[HapClient] Discovery :: Started`)
 
-    // stop discovery after 60 seconds
+    // stop discovery after the timeout (60 seconds unless configured)
     this.startDiscoveryTimeout = setTimeout(() => {
       browser.stop()
       this.debug(`[HapClient] Discovery :: Ended`)
@@ -407,7 +411,7 @@ export class HapClient extends EventEmitter<HapClientEvents> {
         return true
       }
 
-      // Combine lists or fall back to the old property safely
+      // The deny list, or the old name of that option when it is not set
       const denyList = this.config.instanceDenyList ?? this.config.instanceBlacklist
 
       // check instance is not on the denylist
@@ -416,9 +420,9 @@ export class HapClient extends EventEmitter<HapClientEvents> {
         return
       }
 
-      // check instance is on the whitelist
+      // check instance is on the allow list, when there is one
       if (this.config.instanceAllowList && this.config.instanceAllowList.length && !this.config.instanceAllowList.some(x => instance.username.toLowerCase() === x.toLowerCase())) {
-        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} not found in whitelist. Disregarding.`)
+        this.debug(`[HapClient] Discovery :: Instance with username ${instance.username} not found in allow list. Disregarding.`)
         return
       }
 
@@ -555,9 +559,6 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     this.emit('discovery-stopped')
   }
 
-  /**
-   * This checks the instance pin matches
-   */
   /** Usernames are MACs; compare them without caring about case. */
   private static normaliseUsername(username: string): string {
     return username.toUpperCase()
@@ -571,6 +572,10 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     return (instance?.username && this.pins[HapClient.normaliseUsername(instance.username)]) || this.pin
   }
 
+  /**
+   * Checks that the bridge accepts the pin, with a write to a characteristic
+   * that does not exist: a bridge checks the pin before it looks at the write.
+   */
   private async checkInstanceConnection(instance: HapInstance): Promise<boolean> {
     try {
       await this.fetchJson(`http://${instance.ipAddress}:${instance.port}/characteristics`, {
@@ -884,11 +889,20 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     return services
   }
 
+  /**
+   * The first service with this iid.
+   *
+   * ⚠️ An iid is only unique inside one accessory (the first service of every
+   * accessory usually has the same one), so with more than one accessory this
+   * can return a service of another accessory. Filter `getAllServices()` by
+   * `uniqueId` instead.
+   */
   async getService(iid: number) {
     const services = await this.getAllServices()
     return services.find(x => x.iid === iid)
   }
 
+  /** The first service with this name. Names are not unique: two accessories can share one. */
   async getServiceByName(serviceName: string) {
     const services = await this.getAllServices()
     return services.find(x => x.serviceName === serviceName)
@@ -1121,7 +1135,8 @@ export class HapClient extends EventEmitter<HapClientEvents> {
   }
 
   /**
-   * Destroy the HAP client, used by testing when shutting down
+   * Stops discovery and the monitor, and closes the mDNS socket. The client
+   * can not be used again afterwards.
    */
   public destroy() {
     this.destroyed = true
