@@ -819,9 +819,16 @@ export class HapClient extends EventEmitter<HapClientEvents> {
             return
           }
 
-          /* The name characteristic, or a default if none is defined or its value is null/undefined */
-          const serviceName = String(s.characteristics.find(x => x.type === Characteristics.Name)?.value
+          /*
+           * The name characteristic, or a default if none is defined or its
+           * value is null/undefined. An empty name takes the accessory's name.
+           * Worked out once, so the service and its characteristics agree.
+           */
+          const namedAs = String(s.characteristics.find(x => x.type === Characteristics.Name)?.value
             ?? (accessoryInformation.Name || this.humanizeString(serviceType)))
+          const serviceName = namedAs.length
+            ? namedAs
+            : String(accessoryInformation.Name ?? '')
 
           /* Parse Service Characteristics */
           const serviceCharacteristics: Array<CharacteristicType> = s.characteristics
@@ -859,9 +866,7 @@ export class HapClient extends EventEmitter<HapClientEvents> {
             uuid: s.type,
             type: serviceType,
             humanType: this.humanizeString(serviceType),
-            serviceName: serviceName.length
-              ? serviceName
-              : String(accessoryInformation.Name ?? ''),
+            serviceName,
             serviceCharacteristics,
             accessoryInformation,
             values: {},
