@@ -47,6 +47,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: follow a known bridge to a new address when the old one stopped working
 - build: keep the doc comments in the published type files
 - build: run the typecheck before the tests and before a publish
+- ci: keep the npm publish token to the publish job, stay on npm 11 and pass refs as env
 
 ### Homebridge Dependencies
 
