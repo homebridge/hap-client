@@ -116,6 +116,10 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
   }
 
   connectInstance(instance: HapEvInstance) {
+    // A finished monitor stays finished: nothing would close a new socket
+    if (this.finished) {
+      return
+    }
     try {
       this.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Connecting`)
       const socket = createConnection(
@@ -227,6 +231,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
     this.reconnects.delete(instance)
   }
 
+  /** Closes every connection. A finished monitor opens none again. */
   finish() {
     this.finished = true
     for (const instance of this.evInstances) {
@@ -246,7 +251,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
   refreshMonitorConnection(refreshInstance: HapEvInstance) {
     this.debug(`[HapClient] [${refreshInstance.ipAddress}:${refreshInstance.port} (${refreshInstance.username})] Refreshing Monitor`)
     const instance = this.evInstances.find(x => x.username === refreshInstance.username)
-    if (instance) {
+    if (instance && !this.finished) {
       this.cancelReconnect(instance)
       instance.socket?.destroy()
       instance.socket?.removeAllListeners()
@@ -370,6 +375,9 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
    * re-subscribed to the new characteristics.
    */
   updateInstance(refreshInstance: HapInstance, services: ServiceType[]) {
+    if (this.finished) {
+      return
+    }
     const kept = this.services.filter(x => x.instance.username !== refreshInstance.username)
     this.services.splice(0, this.services.length, ...kept, ...services)
 
