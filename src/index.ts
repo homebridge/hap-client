@@ -34,6 +34,15 @@ function isHomebridgeInstance(instance: { name?: string }): boolean {
   return instance?.name?.toLowerCase() === 'homebridge'
 }
 
+/**
+ * How long a bridge gets to answer a request. Without a limit, fetch waits five
+ * minutes for a bridge that accepted the connection and then went silent.
+ * HAP-NodeJS itself answers a slow read after about ten seconds.
+ */
+const REQUEST_TIMEOUT_MS = 15000
+/** A camera snapshot can take longer than a normal request. */
+const RESOURCE_TIMEOUT_MS = 30000
+
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?!$)|$)){4}$/
 
 export interface Config {
@@ -247,7 +256,10 @@ export class HapClient extends EventEmitter {
   }
 
   private async fetchJson<T>(url: string, options?: Parameters<typeof fetch>[1]): Promise<T> {
-    const response = await fetch(url, options)
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ...options,
+    })
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status} ${response.statusText}`)
         ; (error as any).response = { status: response.status }
@@ -895,7 +907,9 @@ export class HapClient extends EventEmitter {
     try {
       const characteristicId = `${service.aid}.${iid}`
       const requestTarget = `/characteristics?id=${encodeURIComponent(characteristicId)}`
-      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}${requestTarget}`)
+      const response = await fetch(`http://${service.instance.ipAddress}:${service.instance.port}${requestTarget}`, {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
       if (!response.ok) {
         const error = new Error(`HTTP ${response.status} ${response.statusText}`)
           ; (error as any).response = { status: response.status }
@@ -1058,6 +1072,7 @@ export class HapClient extends EventEmitter {
           ...body,
           aid: service.aid,
         }),
+        signal: AbortSignal.timeout(RESOURCE_TIMEOUT_MS),
       })
       // fetch resolves on an HTTP error status, where axios rejected. Reject
       // here too, so the catch below can still name a refused pin.

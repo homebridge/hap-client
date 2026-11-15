@@ -1695,3 +1695,104 @@ describe('hapClient discovery - changes to a known bridge', () => {
     expect(instance.port).toBe(51900)
   })
 })
+
+describe('hapClient request time limits', () => {
+  let hapClient: HapClient
+  let timeout: ReturnType<typeof vi.spyOn>
+
+  const instance = {
+    name: 'homebridge',
+    username: 'AA:BB:CC:DD:EE:FF',
+    ipAddress: '127.0.0.1',
+    port: 51826,
+    services: [],
+    connectionFailedCount: 0,
+    configurationNumber: '1',
+  }
+  const service = {
+    aid: 2,
+    iid: 8,
+    serviceName: 'Camera',
+    serviceCharacteristics: [
+      {
+        aid: 2,
+        iid: 10,
+        type: 'On',
+        canRead: true,
+        perms: ['pr', 'pw'],
+      },
+    ],
+    values: {},
+    instance,
+  } as any
+
+  beforeEach(() => {
+    timeout = vi.spyOn(AbortSignal, 'timeout')
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      logger: {
+        error: vi.fn(),
+        warn: vi.fn(),
+      },
+      config: { autoStartDiscovery: false },
+    })
+    ;(hapClient as any).instances = [instance]
+    mockFetch.mockImplementation(async (url: string) => fetchResponse(url.endsWith('/accessories')
+      ? { accessories: [] }
+      : {
+          characteristics: [
+            { aid: 2, iid: 10, value: 1 },
+          ],
+        }))
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+    timeout.mockRestore()
+  })
+
+  // Without a signal, fetch waits five minutes for a bridge that accepted the
+  // connection and then went silent.
+  it.each([
+    [
+      'getAllServices',
+      15000,
+      () => hapClient.getAllServices(),
+    ],
+    [
+      'refreshServiceCharacteristics',
+      15000,
+      () => hapClient.refreshServiceCharacteristics(service),
+    ],
+    [
+      'getCharacteristic',
+      15000,
+      () => hapClient.getCharacteristic(service, 10),
+    ],
+    [
+      'setCharacteristics',
+      15000,
+      () => hapClient.setCharacteristics(service, [
+        { aid: 2, iid: 10, value: 1 },
+      ]),
+    ],
+    [
+      'the pin check',
+      15000,
+      () => (hapClient as any).checkInstanceConnection(instance),
+    ],
+    [
+      'getResource',
+      30000,
+      () => hapClient.getResource(service, { 'resource-type': 'image', 'image-width': 1, 'image-height': 1 }),
+    ],
+  ])('gives up on %s after %i ms', async (_name, limit, request) => {
+    await request()
+
+    expect(mockFetch).toHaveBeenCalled()
+    for (const [, options] of mockFetch.mock.calls) {
+      expect(options?.signal).toBeInstanceOf(AbortSignal)
+    }
+    expect(timeout.mock.calls.map(([ms]) => ms)).toEqual(mockFetch.mock.calls.map(() => limit))
+  })
+})
