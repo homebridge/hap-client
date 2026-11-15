@@ -271,6 +271,18 @@ describe('hapMonitor - reconnect after a close it did not ask for', () => {
     vi.advanceTimersByTime(60000)
     expect(createConnection).toHaveBeenCalledTimes(2)
   })
+
+  // The client keeps handing a finished monitor what discovery finds, so a
+  // finished monitor must not open a socket nothing will ever close
+  it('opens no connection after finish(), not for a refresh and not for an update', () => {
+    monitor.finish()
+
+    monitor.refreshMonitorConnection({ ...(monitor as any).evInstances[0] })
+    const late = buildService('CD:CD:CD:CD:CD:CD')
+    monitor.updateInstance(late.instance, [late])
+
+    expect(createConnection).toHaveBeenCalledTimes(1)
+  })
 })
 
 /**

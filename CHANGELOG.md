@@ -52,6 +52,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - ci: publish with node 24, as the other homebridge repos do
 - chore: use the same homepage and issues urls as the other homebridge packages
 - fix: resolve a write that worked when the read back finds the accessory not responding
+- fix: open no connection from a monitor after finish() was called
 
 ### Homebridge Dependencies
 
