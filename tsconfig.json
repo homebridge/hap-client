@@ -13,7 +13,6 @@
     "strict": true,
     "declaration": true,
     "outDir": "./dist",
-    "removeComments": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
