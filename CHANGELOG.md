@@ -49,6 +49,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - build: run the typecheck before the tests and before a publish
 - ci: keep the npm publish token to the publish job, stay on npm 11 and pass refs as env
 - ci: pin the third-party actions to a commit
+- ci: publish with node 24, as the other homebridge repos do
 
 ### Homebridge Dependencies
 
