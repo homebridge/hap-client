@@ -35,10 +35,24 @@ function httpStatusOf(e: unknown): number | undefined {
     : undefined
 }
 
-class HapCharacteristicError extends Error {
+/**
+ * A read or a write which the bridge answered with a HAP error status for the
+ * characteristic.
+ */
+export class HapCharacteristicError extends Error {
+  /** The accessory id of the characteristic */
+  readonly aid: number
+  /** The instance id of the characteristic */
+  readonly iid: number
+  /** The HAP status the bridge gave, for example -70402 */
+  readonly status: number | undefined
+
   constructor(characteristic: HapCharacteristicRespType['characteristics'][number]) {
     super(`Characteristic ${characteristic.aid}.${characteristic.iid} returned HAP status ${characteristic.status}`)
     this.name = 'HapCharacteristicError'
+    this.aid = characteristic.aid
+    this.iid = characteristic.iid
+    this.status = characteristic.status
   }
 }
 

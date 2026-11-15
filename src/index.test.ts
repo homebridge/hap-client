@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Characteristics, Services } from './hap-types.js'
-import { HapClient } from './index.js'
+import { HapCharacteristicError, HapClient } from './index.js'
 
 const mockFetch = vi.fn()
 
@@ -1504,6 +1504,20 @@ describe('hapClient writes', () => {
       message: 'Characteristic 2.10 returned HAP status -70402',
     })
     expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('exports the error class, and the error names the characteristic and the status', async () => {
+    const service = buildService()
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 2, iid: 10, status: -70402 },
+      ],
+    }, 207, 'Multi-Status'))
+
+    const error = await hapClient.setCharacteristic(service, 10, 1).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(HapCharacteristicError)
+    expect(error).toMatchObject({ aid: 2, iid: 10, status: -70402 })
   })
 
   it('rejects a write of several characteristics when the bridge refused one of them', async () => {
