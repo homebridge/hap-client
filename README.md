@@ -30,19 +30,20 @@ const hapClient = new HapClient({
   config: { debug: false },
 })
 
+// Live updates. Make the monitor once: a bridge found later is added to it by itself.
+const monitor = await hapClient.monitorCharacteristics()
+monitor.on('service-update', (updated) => {
+  for (const service of updated) {
+    console.log(service.serviceName, service.values)
+  }
+})
+
 hapClient.on('instance-discovered', async (instance) => {
   console.log(`Found ${instance.username} at ${instance.ipAddress}:${instance.port}`)
 
   // every service of every registered bridge
   const services = await hapClient.getAllServices()
-
-  // live updates for those services
-  const monitor = await hapClient.monitorCharacteristics(services)
-  monitor.on('service-update', (updated) => {
-    for (const service of updated) {
-      console.log(service.serviceName, service.values)
-    }
-  })
+  console.log(`${services.length} services`)
 })
 ```
 
@@ -53,7 +54,7 @@ hapClient.on('instance-discovered', async (instance) => {
 | `pin`          | The pin to send to a bridge.                                                                                                                                                |
 | `pins`         | Optional. A pin per bridge, by the bridge's username (its MAC address). For child bridges which have a pin of their own. A bridge not listed gets `pin`.                    |
 | `ownUsernames` | Optional. The usernames of the bridges which belong to this Homebridge. A pin refused by another Homebridge on the network is then logged at debug level, not as a warning. |
-| `logger`       | Optional, `console` by default. An object with any of `debug`, `info`, `warn`, `error`.                                                                                     |
+| `logger`       | Optional, `console` by default. An object with any of `debug`, `info`, `warn`, `error`, `log` (the monitor uses `log` when there is no `error`).                            |
 | `config`       | See below.                                                                                                                                                                  |
 
 | `config` key         | Meaning                                                                                                                                                             |
@@ -104,13 +105,13 @@ hapClient.destroy() // stop everything and close the sockets
 
 `HapClient`:
 
-| Event                            | Arguments  | When                                                                             |
-| -------------------------------- | ---------- | -------------------------------------------------------------------------------- |
-| `instance-discovered`            | `instance` | A bridge was registered, or a known one changed its port or configuration number |
-| `instance-configuration-changed` | `instance` | The accessories of a known bridge changed                                        |
-| `discovery-ended`                |            | Discovery ran for its whole timeout                                              |
-| `discovery-stopped`              |            | Discovery was stopped with `stopDiscovery()`                                     |
-| `discovery-terminated`           |            | A running discovery was cut short by `resetInstancePool()`                       |
+| Event                            | Arguments  | When                                                                                                              |
+| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| `instance-discovered`            | `instance` | A bridge was registered, a known one changed its port, name or configuration number, or it moved to a new address |
+| `instance-configuration-changed` | `instance` | The accessories of a known bridge changed                                                                         |
+| `discovery-ended`                |            | Discovery ran for its whole timeout                                                                               |
+| `discovery-stopped`              |            | Discovery was stopped with `stopDiscovery()`                                                                      |
+| `discovery-terminated`           |            | A running discovery was cut short by `resetInstancePool()`                                                        |
 
 The monitor returned by `monitorCharacteristics()`:
 
@@ -120,6 +121,8 @@ The monitor returned by `monitorCharacteristics()`:
 | `monitor-close`   | `instance, hadError` | The connection to a bridge closed (likely a restart) |
 | `monitor-error`   | `instance, error`    | The connection to a bridge had an error              |
 | `monitor-refresh` | `instance`           | The connection to a bridge was opened again          |
+
+`monitor.finish()` closes every connection of the monitor; it opens none again afterwards.
 
 After a connection closes, the monitor opens it again by itself: after 5, 15, 30, 60 and 60 seconds. After five failed tries in a row it waits until discovery finds the bridge again.
 

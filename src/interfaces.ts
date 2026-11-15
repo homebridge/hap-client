@@ -164,7 +164,7 @@ export interface ResourceRequestType {
 
 /** The events of `HapClient`, with the arguments each listener gets. */
 export interface HapClientEvents {
-  /** A bridge was registered, or a known bridge changed its port, name or configuration number */
+  /** A bridge was registered, a known bridge changed its port, name or configuration number, or it moved to a new address */
   'instance-discovered': [instance: HapInstance]
   /** A known bridge has a new configuration number: its accessories changed */
   'instance-configuration-changed': [instance: HapInstance]
