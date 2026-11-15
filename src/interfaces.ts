@@ -161,3 +161,29 @@ export interface ResourceRequestType {
   'image-width': number
   'image-height': number
 }
+
+/** The events of `HapClient`, with the arguments each listener gets. */
+export interface HapClientEvents {
+  /** A bridge was registered, or a known bridge changed its port, name or configuration number */
+  'instance-discovered': [instance: HapInstance]
+  /** A known bridge has a new configuration number: its accessories changed */
+  'instance-configuration-changed': [instance: HapInstance]
+  /** A running discovery was cut short by `resetInstancePool()` */
+  'discovery-terminated': []
+  /** Discovery ran for its whole timeout */
+  'discovery-ended': []
+  /** Discovery was stopped with `stopDiscovery()` */
+  'discovery-stopped': []
+}
+
+/** The events of `HapMonitor`, with the arguments each listener gets. */
+export interface HapMonitorEvents {
+  /** Values changed. Each changed service is listed once. */
+  'service-update': [services: ServiceType[]]
+  /** The connection to a bridge closed */
+  'monitor-close': [instance: HapEvInstance, hadError: boolean]
+  /** The connection to a bridge had an error (a close follows) */
+  'monitor-error': [instance: HapEvInstance, error: Error]
+  /** The connection to a bridge was opened again */
+  'monitor-refresh': [instance: HapEvInstance]
+}
