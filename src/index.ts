@@ -1089,7 +1089,17 @@ export class HapClient extends EventEmitter<HapClientEvents> {
       if (written && !written.canRead) {
         return written
       }
-      return this.getCharacteristic(service, iid)
+      try {
+        return await this.getCharacteristic(service, iid)
+      } catch (e) {
+        // The write worked. A read back that finds the accessory not responding
+        // must not read as a write the bridge refused: the characteristic comes
+        // back with its `status` set (getCharacteristic sets it) instead.
+        if (e instanceof HapCharacteristicError) {
+          return written
+        }
+        throw e
+      }
     } catch (e) {
       throw this.requestFailure(service, e, `Failed to set value for ${service.serviceName}.`, 'Failed to control accessory', 'Failed to control accessory')
     }
@@ -1131,7 +1141,16 @@ export class HapClient extends EventEmitter<HapClientEvents> {
           characteristics,
         }),
       }))
-      return this.refreshServiceCharacteristics(service)
+      try {
+        return await this.refreshServiceCharacteristics(service)
+      } catch (e) {
+        // The write worked: a part found not responding by the read back has
+        // its `status` set, as in setCharacteristic.
+        if (e instanceof HapCharacteristicError) {
+          return service
+        }
+        throw e
+      }
     } catch (e) {
       throw this.requestFailure(service, e, `Failed to set value for ${service.serviceName}.`, 'Failed to control accessory', 'Failed to control accessory')
     }
