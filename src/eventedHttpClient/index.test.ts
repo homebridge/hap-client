@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConnection } from './index.js'
 
 const writeSpy = vi.fn()
+const setKeepAliveSpy = vi.fn()
 
 vi.mock('node:net', () => ({
   createConnection: vi.fn(() => ({
     write: writeSpy,
+    setKeepAlive: setKeepAliveSpy,
     on: vi.fn(),
     destroy: vi.fn(),
     removeAllListeners: vi.fn(),
@@ -73,5 +75,20 @@ describe('eventedHttpClient _buildMessage Content-Length', () => {
     const declared = getDeclaredContentLength(getWrittenMessage())
     expect(declared).toBe(Buffer.byteLength(serialised, 'utf8'))
     expect(declared).toBe(serialised.length) // all-ASCII so they match
+  })
+})
+
+describe('eventedHttpClient connection', () => {
+  afterEach(() => {
+    writeSpy.mockClear()
+    setKeepAliveSpy.mockClear()
+  })
+
+  // Without keep-alive a bridge whose machine lost power or network leaves the
+  // socket open for ever: no close event, so no reconnect and no more events.
+  it('turns on TCP keep-alive so a connection to a bridge that vanished gets closed', () => {
+    createConnection({ ipAddress: '127.0.0.1', port: 51826 }, '031-45-154', { characteristics: [] })
+
+    expect(setKeepAliveSpy).toHaveBeenCalledExactlyOnceWith(true, 30000)
   })
 })
