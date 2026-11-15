@@ -1889,3 +1889,42 @@ describe('hapClient getAllServices - unique ids', () => {
     expect(second.legacyUniqueId).toBe(first.legacyUniqueId)
   })
 })
+
+describe('hapClient debug logging cost', () => {
+  function stackTracesBuiltBy(client: HapClient): number {
+    const original = Error.prepareStackTrace
+    const prepare = vi.fn((error: Error) => String(error))
+    Error.prepareStackTrace = prepare
+    try {
+      client.debug('a debug line')
+    } finally {
+      Error.prepareStackTrace = original
+      client.destroy()
+    }
+    return prepare.mock.calls.length
+  }
+
+  it('builds no stack trace for a debug line while debug logging is off', () => {
+    const debug = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { debug },
+      config: { autoStartDiscovery: false },
+    })
+
+    expect(stackTracesBuiltBy(client)).toBe(0)
+    expect(debug).not.toHaveBeenCalled()
+  })
+
+  it('still adds the calling line to a debug line while debug logging is on', () => {
+    const debug = vi.fn()
+    const client = new HapClient({
+      pin: '123-45-678',
+      logger: { debug },
+      config: { autoStartDiscovery: false, debug: true },
+    })
+
+    expect(stackTracesBuiltBy(client)).toBe(1)
+    expect(debug).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^a debug line @ /))
+  })
+})

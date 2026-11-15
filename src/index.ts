@@ -177,13 +177,16 @@ export class HapClient extends EventEmitter {
       return
     }
 
+    // Before the stack trace below: building one for every debug line is the
+    // costly part, and most installs run with debug off.
+    if (level === 'debug' && !this.debugEnabled) {
+      return
+    }
+
     const message = includeStack
       ? `${msg} @ ${new Error().stack?.split('\n')[3]?.trim()}` // eslint-disable-line unicorn/error-message
       : msg
 
-    if (level === 'debug' && !this.debugEnabled) {
-      return
-    }
     this.logger[level](message)
   }
 
