@@ -13,13 +13,13 @@
     }
   ],
   "license": "MIT",
-  "homepage": "https://github.com/homebridge/hap-client/blob/latest#readme",
+  "homepage": "https://github.com/homebridge/hap-client#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/homebridge/hap-client.git"
   },
   "bugs": {
-    "url": "https://github.com/homebridge/hap-client/issues/"
+    "url": "https://github.com/homebridge/hap-client/issues"
   },
   "keywords": [
     "hap",
