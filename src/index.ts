@@ -23,6 +23,20 @@ class HapCharacteristicError extends Error {
 }
 
 /**
+ * A response with an HTTP error status. fetch resolves on those where axios
+ * rejected; the status is kept where an axios error had it, so the handlers
+ * which name a refused pin read it the same way.
+ */
+class HapHttpError extends Error {
+  readonly response: { status: number }
+
+  constructor(response: { status: number, statusText: string }) {
+    super(`HTTP ${response.status} ${response.statusText}`)
+    this.response = { status: response.status }
+  }
+}
+
+/**
  * Whether a discovered HAP device is one of Homebridge's own bridges.
  *
  * Homebridge advertises `md=homebridge` in its mDNS txt record (kept here as
@@ -202,48 +216,32 @@ export class HapClient extends EventEmitter {
     this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw packet ${direction}:\n${packet.toString('utf8')}`)
   }
 
-  private debugRawResponse(instance: HapInstance, operation: string, response: any) {
+  /**
+   * Logs one request and its answer as text. fetch does not hand out the bytes
+   * it sent or received, so both are written out again from what it reports:
+   * the request line, the status line, the headers and the unparsed body.
+   */
+  private debugRawExchange(
+    instance: HapInstance,
+    operation: string,
+    request: string,
+    response: { status: number, statusText: string, headers: { entries: () => Iterable<[string, string]> } },
+    body: string,
+  ) {
     if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
       return
     }
 
-    const body = typeof response.data === 'string'
-      ? response.data
-      : JSON.stringify(response.data)
-    const incomingMessage = response.request?.res
-    const status = incomingMessage?.statusCode ?? response.status
-    const statusText = incomingMessage?.statusMessage ?? response.statusText
-    const httpVersion = incomingMessage?.httpVersion ?? '1.1'
-    const rawHeaders: string[] = incomingMessage?.rawHeaders ?? Object.entries(response.headers ?? {})
-      .flatMap(([name, value]) => [
-        name,
-        Array.isArray(value)
-          ? value.join(', ')
-          : String(value),
-      ])
-    const statusLine = status
-      ? `HTTP/${httpVersion} ${status}${statusText
-        ? ` ${statusText}`
-        : ''}\r\n`
-      : ''
-    const headers = rawHeaders.length
-      ? `${Array.from({ length: rawHeaders.length / 2 }, (_, index) => `${rawHeaders[index * 2]}: ${rawHeaders[index * 2 + 1]}`).join('\r\n')}\r\n`
-      : ''
-    const packet = `${statusLine}${headers}\r\n${body}`
+    const where = `[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})]`
+    const statusLine = `HTTP/1.1 ${response.status}${response.statusText
+      ? ` ${response.statusText}`
+      : ''}\r\n`
+    const headers = [
+      ...response.headers.entries(),
+    ].map(([name, value]) => `${name}: ${value}\r\n`).join('')
 
-    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} response:\n${packet}`)
-  }
-
-  private debugRawRequest(instance: HapInstance, operation: string, response: any, fallback: string) {
-    if (!this.debugEnabled || !this.debugRawPacketsEnabled || typeof this.logger?.debug !== 'function') {
-      return
-    }
-
-    // Node's ClientRequest retains the exact serialized request headers in
-    // `_header`. Other Axios adapters do not expose that value, so use the
-    // equivalent minimal HTTP request as a fallback.
-    const packet = response.request?._header ?? fallback
-    this.logger.debug(`[HapClient] [${instance.ipAddress}:${instance.port} (${instance.username})] Raw ${operation} request sent:\n${packet}`)
+    this.logger.debug(`${where} Raw ${operation} request sent:\n${request}`)
+    this.logger.debug(`${where} Raw ${operation} response:\n${statusLine}${headers}\r\n${body}`)
   }
 
   info(msg: string) {
@@ -264,9 +262,7 @@ export class HapClient extends EventEmitter {
       ...options,
     })
     if (!response.ok) {
-      const error = new Error(`HTTP ${response.status} ${response.statusText}`)
-        ; (error as any).response = { status: response.status }
-      throw error
+      throw new HapHttpError(response)
     }
     const isPut = options?.method?.toUpperCase() === 'PUT'
     if (response.status === 204 && isPut) {
@@ -927,20 +923,16 @@ export class HapClient extends EventEmitter {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
       if (!response.ok) {
-        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
-          ; (error as any).response = { status: response.status }
-        throw error
+        throw new HapHttpError(response)
       }
       const responseData = await response.text()
-      const responseForDebug = {
-        data: responseData,
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      }
-      const fallbackRequest = `GET ${requestTarget} HTTP/1.1\r\nHost: ${service.instance.ipAddress}:${service.instance.port}\r\n\r\n`
-      this.debugRawRequest(service.instance, `getValue(${characteristicId})`, responseForDebug, fallbackRequest)
-      this.debugRawResponse(service.instance, `getValue(${characteristicId})`, responseForDebug)
+      this.debugRawExchange(
+        service.instance,
+        `getValue(${characteristicId})`,
+        `GET ${requestTarget} HTTP/1.1\r\nHost: ${service.instance.ipAddress}:${service.instance.port}\r\n\r\n`,
+        response,
+        responseData,
+      )
       const resp: HapCharacteristicRespType = JSON.parse(responseData)
 
       const respCharacteristic = resp.characteristics?.[0]
@@ -1092,12 +1084,9 @@ export class HapClient extends EventEmitter {
         }),
         signal: AbortSignal.timeout(RESOURCE_TIMEOUT_MS),
       })
-      // fetch resolves on an HTTP error status, where axios rejected. Reject
-      // here too, so the catch below can still name a refused pin.
+      // Reject, so the catch below can name a refused pin
       if (!response.ok) {
-        const error = new Error(`HTTP ${response.status} ${response.statusText}`)
-          ; (error as any).response = { status: response.status }
-        throw error
+        throw new HapHttpError(response)
       }
       const resp: any = {
         status: response.status,

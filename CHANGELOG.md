@@ -20,6 +20,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - perf: build no stack trace for a debug line while debug logging is off
 - perf: read the accessories of every bridge at the same time instead of one after another
 - refactor: replace the borrowed http message parser with a small typed one
+- refactor: drop the axios fields from the raw packet logging and build http errors in one place
 
 ### Homebridge Dependencies
 
