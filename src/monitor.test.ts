@@ -521,3 +521,27 @@ describe('hapMonitor data handling - multiple messages per chunk', () => {
     expect((monitor as any).evInstances[0].recvBuffer.length).toBe(0)
   })
 })
+
+describe('hapMonitor - refused pin', () => {
+  const username = 'AA:BB:CC:DD:EE:FF'
+
+  afterEach(() => {
+    vi.mocked(parseMessage).mockReset()
+    vi.mocked(parseMessage).mockImplementation(() => ({ statusCode: 200, protocol: 'HTTP' } as any))
+  })
+
+  // HAP-NodeJS answers a wrong pin with 470, not 401
+  it.each([401, 470])('names the pin when the bridge answers the subscription with %i', (statusCode) => {
+    const debug = vi.fn()
+    const monitor = new HapMonitor(null, debug, '031-45-154', [
+      buildService(username),
+    ])
+    vi.mocked(parseMessage).mockReturnValueOnce({ protocol: 'HTTP', statusCode, statusMessage: 'Refused' } as any)
+
+    ;(monitor as any).handleEventMessage((monitor as any).evInstances[0], 'raw')
+    monitor.finish()
+
+    expect(debug).toHaveBeenCalledWith(`[HapClient] [127.0.0.1:51826 (${username})] ${statusCode} Refused - `
+      + 'make sure Homebridge pin for this instance is set to 031-45-154.')
+  })
+})
