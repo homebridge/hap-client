@@ -52,6 +52,14 @@ export class HapClient extends EventEmitter {
   private readonly bonjour = this.createBonjour()
   private browser: InstanceType<typeof Bonjour.Browser> | undefined
   private discoveryInProgress = false
+  /**
+   * Goes up whenever discovery is stopped, the pool is reset or the client is
+   * destroyed. A found bridge is probed over HTTP, which can take seconds; a
+   * probe compares the number it started with to know its result is no longer
+   * wanted.
+   */
+  private discoveryRun = 0
+  private destroyed = false
 
   private readonly defaultDiscoveryTimeout: number = 60000
   private readonly defaultAutoStartDiscovery: boolean = true
@@ -288,6 +296,7 @@ export class HapClient extends EventEmitter {
       clearTimeout(this.resetInstancePoolTimeout)
     }
 
+    this.discoveryRun++
     this.instances = []
     this.resetInstancePoolTimeout = setTimeout(() => {
       this.refreshInstances()
@@ -358,6 +367,16 @@ export class HapClient extends EventEmitter {
       }
 
       this.debug(`[HapClient] Discovery :: Found HAP device with username ${instance.username}`)
+
+      // Checked after every wait below
+      const run = this.discoveryRun
+      const outdated = () => {
+        if (run === this.discoveryRun) {
+          return false
+        }
+        this.debug(`[HapClient] Discovery :: Dropping the probe of ${instance.username}, discovery was stopped or reset meanwhile`)
+        return true
+      }
 
       // Combine lists or fall back to the old property safely
       const denyList = this.config.instanceDenyList ?? this.config.instanceBlacklist
@@ -431,6 +450,9 @@ export class HapClient extends EventEmitter {
           this.debug(`[HapClient] Discovery :: Could not resolve host ${device.host} `
             + `for ${instance.username}: ${e.message}`)
         }
+        if (outdated()) {
+          return
+        }
       }
 
       for (const ip of addresses) {
@@ -456,11 +478,23 @@ export class HapClient extends EventEmitter {
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} via http://${ip}:${device.port}/accessories`)
             this.debug(`[HapClient] Discovery :: Failed ${instance.username} with error: ${e.message}`)
           }
+          if (outdated()) {
+            return
+          }
         }
       }
 
       // store instance record if the connection works
-      if (instance.ipAddress && await this.checkInstanceConnection(instance)) {
+      const connected = !!instance.ipAddress && await this.checkInstanceConnection(instance)
+      if (outdated()) {
+        return
+      }
+      if (connected && this.instances.some(x => x.username === instance.username)) {
+        // A second probe of the same bridge got there first
+        this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance already registered`)
+        return
+      }
+      if (connected) {
         this.instances.push(instance)
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance Registered`)
         this.emit('instance-discovered', instance)
@@ -474,6 +508,7 @@ export class HapClient extends EventEmitter {
   }
 
   public stopDiscovery() {
+    this.discoveryRun++
     this.discoveryInProgress = false
     this.browser?.stop()
     this.browser?.removeAllListeners()
@@ -567,6 +602,9 @@ export class HapClient extends EventEmitter {
     }
     try {
       const services = await this.getAllServices(instance)
+      if (this.destroyed) {
+        return
+      }
       // getAccessories() swallows a failed read and returns nothing, which
       // updateInstance() would take as "no services" and drop the bridge. A
       // bridge whose configuration just changed has usually just restarted, so
@@ -1055,6 +1093,8 @@ export class HapClient extends EventEmitter {
    * Destroy the HAP client, used by testing when shutting down
    */
   public destroy() {
+    this.destroyed = true
+    this.discoveryRun++
     this.browser?.stop()
     this.hapMonitor?.finish()
     this.discoveryInProgress = false
