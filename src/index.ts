@@ -345,8 +345,8 @@ export class HapClient extends EventEmitter {
       this.emit('discovery-ended')
     }, timeout)
 
-    // service found
-    browser.on('up', async (device: InstanceType<typeof Bonjour.Service>) => {
+    // service found, or a known service changed
+    const onService = async (device: InstanceType<typeof Bonjour.Service>) => {
       if (!device || !device.txt) {
         this.debug(`[HapClient] Discovery :: Ignoring device that contains no txt records. ${JSON.stringify(device)}`)
         return
@@ -504,7 +504,13 @@ export class HapClient extends EventEmitter {
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
-    })
+    }
+    browser.on('up', onService)
+    // bonjour-service emits 'up' only for a service it has not seen before. A
+    // change to one it knows comes as 'txt-update' (the configuration number
+    // went up, so the accessories changed) or 'srv-update' (a new port).
+    browser.on('txt-update', onService)
+    browser.on('srv-update', onService)
   }
 
   public stopDiscovery() {

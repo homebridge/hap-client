@@ -1637,3 +1637,61 @@ describe('hapClient discovery probes that finish late', () => {
     expect(updateInstance).not.toHaveBeenCalled()
   })
 })
+
+describe('hapClient discovery - changes to a known bridge', () => {
+  let hapClient: HapClient
+  let instance: any
+
+  const handlerFor = (event: string): (device: any) => Promise<void> =>
+    mockBrowserOn.mock.calls.find(([name]) => name === event)?.[1]
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    hapClient.startDiscovery()
+    instance = {
+      name: 'homebridge',
+      username: 'AA:BB:CC:DD:EE:FF',
+      ipAddress: '192.168.1.10',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: '1',
+    }
+    ;(hapClient as any).instances = [instance]
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  // bonjour-service only emits 'up' for a service it has not seen before. A
+  // change to a known one arrives as 'txt-update' (c#) or 'srv-update' (port).
+  it('notices a new configuration number that bonjour-service reports as txt-update', async () => {
+    const changed = vi.fn()
+    hapClient.on('instance-configuration-changed', changed)
+
+    await handlerFor('txt-update')({
+      txt: { 'c#': '2', 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'homebridge' },
+      port: 51826,
+    })
+
+    expect(changed).toHaveBeenCalledExactlyOnceWith(instance)
+    expect(instance.configurationNumber).toBe('2')
+  })
+
+  it('notices a new port that bonjour-service reports as srv-update', async () => {
+    const discovered = vi.fn()
+    hapClient.on('instance-discovered', discovered)
+
+    await handlerFor('srv-update')({
+      txt: { 'c#': '1', 'id': 'AA:BB:CC:DD:EE:FF', 'md': 'homebridge' },
+      port: 51900,
+    })
+
+    expect(discovered).toHaveBeenCalledExactlyOnceWith(instance)
+    expect(instance.port).toBe(51900)
+  })
+})
