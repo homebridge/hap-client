@@ -446,35 +446,14 @@ export class HapClient extends EventEmitter<HapClientEvents> {
 
       // update an existing instance
       const existingInstanceIndex = this.instances.findIndex(x => x.username === instance.username)
-      if (existingInstanceIndex > -1) {
-        // ipAddresses change use case is not handled
-        const configurationChanged = this.instances[existingInstanceIndex].configurationNumber !== instance.configurationNumber
-        if (
-          this.instances[existingInstanceIndex].port !== instance.port
-          || this.instances[existingInstanceIndex].name !== instance.name
-          || configurationChanged
-        ) {
-          this.instances[existingInstanceIndex].port = instance.port
-          this.instances[existingInstanceIndex].name = instance.name
-          this.instances[existingInstanceIndex].configurationNumber = instance.configurationNumber
-          this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
-            + `(${instance.username})] Instance Updated`)
-          this.emit('instance-discovered', this.instances[existingInstanceIndex])
-          if (configurationChanged) {
-            this.emit('instance-configuration-changed', this.instances[existingInstanceIndex])
-            // The accessories changed, so the monitor needs the new service
-            // list, not just a fresh socket to the old one
-            void this.syncMonitorInstance(this.instances[existingInstanceIndex])
-          } else {
-            this.hapMonitor?.refreshMonitorConnection(this.instances[existingInstanceIndex])
-          }
-        } else if (this.hapMonitor && this.hapMonitor.isInstanceMonitored(instance.username) && !this.hapMonitor.isInstanceConnected(instance.username)) {
-          // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
-          this.debug(`[HapClient] Discovery :: [${this.instances[existingInstanceIndex].ipAddress}:${instance.port} `
-            + `(${instance.username})] Instance re-announced with closed socket, reconnecting`)
-          this.hapMonitor.refreshMonitorConnection(this.instances[existingInstanceIndex])
-        }
-
+      // A known bridge has moved when its address stopped working and the
+      // service names other addresses. Both must hold: a bridge on two
+      // networks is announced with one address per network, and a working
+      // connection must not hop between them. A moved bridge is probed below
+      // like a new one, and the known record only changes when the probe works.
+      const moved = existingInstanceIndex > -1 && this.hasMoved(this.instances[existingInstanceIndex], device.addresses)
+      if (existingInstanceIndex > -1 && !moved) {
+        this.updateKnownInstance(this.instances[existingInstanceIndex], instance)
         return
       }
 
@@ -540,7 +519,20 @@ export class HapClient extends EventEmitter<HapClientEvents> {
       if (outdated()) {
         return
       }
-      if (connected && this.instances.some(x => x.username === instance.username)) {
+      const known = this.instances.find(x => x.username === instance.username)
+      if (connected && known && moved && known.ipAddress !== instance.ipAddress) {
+        this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance moved from ${known.ipAddress}`)
+        known.ipAddress = instance.ipAddress
+        known.port = instance.port
+        known.name = instance.name
+        known.configurationNumber = instance.configurationNumber
+        known.connectionFailedCount = 0
+        this.emit('instance-discovered', known)
+        // The monitor still holds the old address
+        void this.syncMonitorInstance(known)
+        return
+      }
+      if (connected && known) {
         // A second probe of the same bridge got there first
         this.debug(`[HapClient] Discovery :: [${instance.ipAddress}:${instance.port} (${instance.username})] Instance already registered`)
         return
@@ -552,6 +544,9 @@ export class HapClient extends EventEmitter<HapClientEvents> {
         // A bridge that registers after the monitor was built has to be added
         // to it, or it never gets live updates (homebridge-config-ui-x#2979)
         void this.syncMonitorInstance(instance)
+      } else if (known && moved) {
+        // The new address did not answer: treat the announcement as before
+        this.updateKnownInstance(known, instance)
       } else {
         this.debug(`[HapClient] Discovery :: Could not register to device with username ${instance.username}`)
       }
@@ -562,6 +557,52 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     // went up, so the accessories changed) or 'srv-update' (a new port).
     browser.on('txt-update', onService)
     browser.on('srv-update', onService)
+  }
+
+  /** Take over what a new announcement says about a bridge already in the pool, and reconnect the monitor when needed. */
+  private updateKnownInstance(known: HapInstance, instance: HapInstance) {
+    const configurationChanged = known.configurationNumber !== instance.configurationNumber
+    if (
+      known.port !== instance.port
+      || known.name !== instance.name
+      || configurationChanged
+    ) {
+      known.port = instance.port
+      known.name = instance.name
+      known.configurationNumber = instance.configurationNumber
+      this.debug(`[HapClient] Discovery :: [${known.ipAddress}:${instance.port} `
+        + `(${instance.username})] Instance Updated`)
+      this.emit('instance-discovered', known)
+      if (configurationChanged) {
+        this.emit('instance-configuration-changed', known)
+        // The accessories changed, so the monitor needs the new service
+        // list, not just a fresh socket to the old one
+        void this.syncMonitorInstance(known)
+      } else {
+        this.hapMonitor?.refreshMonitorConnection(known)
+      }
+    } else if (this.hapMonitor && this.hapMonitor.isInstanceMonitored(instance.username) && !this.hapMonitor.isInstanceConnected(instance.username)) {
+      // Same port/name/config but the socket is dead (e.g. same-port restart) - reconnect immediately
+      this.debug(`[HapClient] Discovery :: [${known.ipAddress}:${instance.port} `
+        + `(${instance.username})] Instance re-announced with closed socket, reconnecting`)
+      this.hapMonitor.refreshMonitorConnection(known)
+    }
+  }
+
+  /**
+   * Whether a known bridge is now at another address: the service names IPv4
+   * addresses, the known one is not among them, and the known one fails (a
+   * read failed, or the monitor has lost its connection).
+   */
+  private hasMoved(known: HapInstance, addresses: unknown): boolean {
+    const announced = Array.isArray(addresses)
+      ? addresses.filter(ip => typeof ip === 'string' && isIPv4(ip))
+      : []
+    if (!announced.length || !known.ipAddress || announced.includes(known.ipAddress)) {
+      return false
+    }
+    return known.connectionFailedCount > 0
+      || (!!this.hapMonitor?.isInstanceMonitored(known.username) && !this.hapMonitor.isInstanceConnected(known.username))
   }
 
   public stopDiscovery() {

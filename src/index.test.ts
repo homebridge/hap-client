@@ -367,6 +367,110 @@ describe('hapClient bonjour up handler - missing id', () => {
   })
 })
 
+describe('hapClient bonjour up handler - a known bridge at a new address', () => {
+  const username = 'AA:BB:CC:DD:EE:FF'
+  let hapClient: HapClient
+  let upHandler: (device: any) => Promise<void>
+  let known: any
+
+  beforeEach(() => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    hapClient.startDiscovery()
+    upHandler = mockBrowserOn.mock.calls.find(([event]) => event === 'up')?.[1]
+    known = {
+      name: 'Test Bridge',
+      username,
+      ipAddress: '10.0.0.5',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    }
+    ;(hapClient as any).instances = [known]
+    mockFetch.mockResolvedValue(fetchResponse({ accessories: [] }))
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  const announce = () => upHandler({
+    txt: { 'c#': 1, 'id': username, 'md': 'Test Bridge' },
+    port: 51826,
+    addresses: ['10.0.0.9'],
+  })
+
+  it('moves the bridge to the new address when the old one fails and the new one answers', async () => {
+    known.connectionFailedCount = 2
+    const discovered = vi.fn()
+    hapClient.on('instance-discovered', discovered)
+
+    await announce()
+
+    expect((hapClient as any).instances).toEqual([known])
+    expect(known).toMatchObject({ ipAddress: '10.0.0.9', connectionFailedCount: 0 })
+    expect(discovered).toHaveBeenCalledWith(known)
+    expect(mockFetch.mock.calls[0][0]).toBe('http://10.0.0.9:51826/accessories')
+  })
+
+  it('moves the bridge when the monitor has lost its connection', async () => {
+    const updateInstance = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      updateInstance,
+      refreshMonitorConnection: vi.fn(),
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      finish: vi.fn(),
+    }
+    ;(hapClient as any).getAllServices = vi.fn().mockResolvedValue([
+      { instance: known, aid: 1 },
+    ])
+
+    await announce()
+
+    expect(known.ipAddress).toBe('10.0.0.9')
+    await vi.waitFor(() => expect(updateInstance).toHaveBeenCalledWith(known, [
+      { instance: known, aid: 1 },
+    ]))
+  })
+
+  it('keeps the old address when the new one does not answer', async () => {
+    known.connectionFailedCount = 2
+    mockFetch.mockRejectedValue(new TypeError('fetch failed'))
+
+    await announce()
+
+    expect((hapClient as any).instances).toEqual([known])
+    expect(known.ipAddress).toBe('10.0.0.5')
+  })
+
+  it('still reconnects the monitor to the old address when the new one does not answer', async () => {
+    const refreshMonitorConnection = vi.fn()
+    ;(hapClient as any).hapMonitor = {
+      refreshMonitorConnection,
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      finish: vi.fn(),
+    }
+    mockFetch.mockRejectedValue(new TypeError('fetch failed'))
+
+    await announce()
+
+    expect(known.ipAddress).toBe('10.0.0.5')
+    expect(refreshMonitorConnection).toHaveBeenCalledWith(known)
+  })
+
+  it('does not probe another address while the known one works', async () => {
+    await announce()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(known.ipAddress).toBe('10.0.0.5')
+  })
+})
+
 describe('hapClient bonjour up handler - deny list under both names', () => {
   it('ignores a bridge on instanceBlacklist when instanceDenyList is set but empty', async () => {
     const hapClient = new HapClient({
