@@ -73,8 +73,8 @@ export interface ServiceType {
   serviceCharacteristics: CharacteristicType[]
   accessoryInformation: any
   refreshCharacteristics?: () => Promise<ServiceType>
-  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<ServiceType>
-  setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<ServiceType>
+  setCharacteristic?: (iid: number, value: number | string | boolean) => Promise<CharacteristicType>
+  setCharacteristicByType?: (type: string, value: number | string | boolean) => Promise<CharacteristicType>
   setCharacteristicsByTypes?: (payload: Record<string, string | number | boolean>) => Promise<ServiceType>
   getCharacteristic?: (type: string) => CharacteristicType
   getResource?: (body: ResourceRequestType) => Promise<ServiceType>
