@@ -56,10 +56,11 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: give the characteristics of a service with an empty name the same name as the service
 - docs: make the monitor once in the readme example and name the moved bridge and finish()
 - fix: refuse a write to a characteristic which is not part of the given service
+- chore(deps): dependency updates
 
 ### Homebridge Dependencies
 
-- `@homebridge/hap-nodejs` @ `v2.2.4-beta.7`
+- `@homebridge/hap-nodejs` @ `v2.3.1-beta`
 
 ## v5.4.0 (2026-10-31)
 
