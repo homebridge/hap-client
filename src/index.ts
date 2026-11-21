@@ -133,6 +133,11 @@ export class HapClient extends EventEmitter<HapClientEvents> {
    * again, so a mismatch that returns is reported afresh.
    */
   private readonly pinRefusals = new Set<string>()
+  /**
+   * Every characteristic id of a service this client built, as its bridge lists them: the hidden
+   * ones and those of an unknown type too, which `serviceCharacteristics` leaves out.
+   */
+  private readonly characteristicIds = new WeakMap<ServiceType, Set<number>>()
   /** See the constructor's `ownUsernames`; undefined means every Homebridge bridge is ours. */
   private readonly ownUsernames?: Set<string>
   private readonly debugEnabled: boolean = false
@@ -874,6 +879,8 @@ export class HapClient extends EventEmitter<HapClientEvents> {
             instance: accessory.instance,
           }
 
+          this.characteristicIds.set(service, new Set(s.characteristics.map(c => c.iid)))
+
           // generate unique id for service. The parts are separated, so that
           // accessory 1 service 18 and accessory 11 service 8 differ.
           service.uniqueId = createHash('sha256')
@@ -1071,6 +1078,13 @@ export class HapClient extends EventEmitter<HapClientEvents> {
   }
 
   async setCharacteristic(service: ServiceType, iid: number, value: number | string | boolean) {
+    // A write names the accessory and the characteristic, never the service. So an id of another
+    // service of the same accessory (the lock next to a light) would be written too. A caller
+    // which may only control this one service relies on the id being checked here.
+    const ownIds = this.characteristicIds.get(service)
+    if (ownIds && !ownIds.has(iid)) {
+      throw new Error(`Characteristic ${service.aid}.${iid} is not part of service ${service.serviceName}`)
+    }
     try {
       HapClient.assertWritten(await this.fetchJson<HapCharacteristicRespType | undefined>(`http://${service.instance.ipAddress}:${service.instance.port}/characteristics`, {
         method: 'PUT',

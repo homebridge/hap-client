@@ -55,6 +55,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - fix: open no connection from a monitor after finish() was called
 - fix: give the characteristics of a service with an empty name the same name as the service
 - docs: make the monitor once in the readme example and name the moved bridge and finish()
+- fix: refuse a write to a characteristic which is not part of the given service
 
 ### Homebridge Dependencies
 
