@@ -2282,3 +2282,105 @@ describe('hapClient getAllServices - several bridges', () => {
     ])
   })
 })
+
+describe('hapClient setCharacteristic - the id must belong to the service', () => {
+  let hapClient: HapClient
+
+  beforeEach(async () => {
+    hapClient = new HapClient({
+      pin: '123-45-678',
+      config: { autoStartDiscovery: false },
+    })
+    ;(hapClient as any).instances = [
+      {
+        name: 'homebridge',
+        username: 'AA:BB:CC:DD:EE:FF',
+        ipAddress: '127.0.0.1',
+        port: 51826,
+        services: [],
+        connectionFailedCount: 0,
+        configurationNumber: '1',
+      },
+    ]
+    // A garage door with a light: one accessory, two services
+    mockFetch.mockResolvedValueOnce(fetchResponse({
+      accessories: [
+        {
+          aid: 1,
+          services: [
+            {
+              iid: 8,
+              type: '43', // Lightbulb
+              characteristics: [
+                {
+                  iid: 10,
+                  type: '25',
+                  description: 'On',
+                  value: false,
+                  format: 'bool',
+                  perms: ['pr', 'pw', 'ev'],
+                },
+                // a characteristic of a type the client does not know, so it is not surfaced
+                {
+                  iid: 11,
+                  type: 'F0000001-0000-1000-8000-0026BB765291',
+                  description: 'Custom',
+                  value: 1,
+                  format: 'int',
+                  perms: ['pr', 'pw'],
+                },
+              ],
+            },
+            {
+              iid: 20,
+              type: '41', // GarageDoorOpener
+              characteristics: [
+                {
+                  iid: 22,
+                  type: '32',
+                  description: 'Target Door State',
+                  value: 1,
+                  format: 'uint8',
+                  perms: ['pr', 'pw', 'ev'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }))
+  })
+
+  afterEach(() => {
+    hapClient.destroy()
+  })
+
+  it('refuses a characteristic of another service of the same accessory, and sends nothing', async () => {
+    const [light] = await hapClient.getAllServices()
+    mockFetch.mockClear()
+
+    // 22 is the door's target state: a caller allowed the light only must not reach it
+    await expect(hapClient.setCharacteristic(light, 22, 0)).rejects.toThrow('Characteristic 1.22 is not part of service')
+    await expect(light.setCharacteristic!(22, 0)).rejects.toThrow('is not part of service')
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('still writes a characteristic of the service itself, one of an unknown type too', async () => {
+    const [light] = await hapClient.getAllServices()
+    mockFetch.mockClear()
+    mockFetch.mockResolvedValue(fetchResponse({
+      characteristics: [
+        { aid: 1, iid: 10, value: true },
+      ],
+    }))
+
+    await hapClient.setCharacteristic(light, 10, true)
+    await hapClient.setCharacteristic(light, 11, 2)
+
+    const written = mockFetch.mock.calls
+      .filter(([, init]) => init?.method === 'PUT')
+      .map(([, init]) => JSON.parse(init.body).characteristics[0].iid)
+    expect(written).toEqual([10, 11])
+  })
+})
