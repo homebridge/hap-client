@@ -79,6 +79,7 @@ describe('hapClient against a real HAP-NodeJS bridge', () => {
 
     instance = {
       name: 'homebridge',
+      displayName: 'homebridge',
       username: USERNAME,
       ipAddress: '127.0.0.1',
       port: await listening,
