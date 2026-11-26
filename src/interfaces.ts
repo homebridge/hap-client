@@ -22,6 +22,8 @@ export interface HapClientLogger {
 
 export interface HapInstance {
   name: string
+  /** The bridge's advertised mDNS service instance name, e.g. `Hue 3A1B`. `name` holds the model, so use this for display. */
+  displayName: string
   ipAddress: string | null
   port: number
   username: string
@@ -33,6 +35,8 @@ export interface HapInstance {
 
 export interface HapEvInstance {
   name: string
+  /** The bridge's advertised mDNS service instance name, e.g. `Hue 3A1B`. `name` holds the model, so use this for display. */
+  displayName: string
   ipAddress: string | null
   port: number
   username: string

@@ -408,6 +408,7 @@ export class HapMonitor extends EventEmitter<HapMonitorEvents> {
     }
 
     instance.name = refreshInstance.name
+    instance.displayName = refreshInstance.displayName
     instance.port = refreshInstance.port
     instance.ipAddress = refreshInstance.ipAddress
     instance.evCharacteristics = evCharacteristics
