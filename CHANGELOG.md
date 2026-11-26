@@ -57,6 +57,7 @@ All notable changes to `@homebridge/hap-client` will be documented in this file.
 - docs: make the monitor once in the readme example and name the moved bridge and finish()
 - fix: refuse a write to a characteristic which is not part of the given service
 - chore(deps): dependency updates
+- feat: add instance.displayName, the bridge's advertised mDNS name, as instance.name holds the model
 
 ### Homebridge Dependencies
 

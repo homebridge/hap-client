@@ -410,6 +410,7 @@ export class HapClient extends EventEmitter<HapClientEvents> {
 
       const instance: HapInstance = {
         name: device.txt.md,
+        displayName: device.name || device.txt.md,
         username: device.txt.id,
         ipAddress: null,
         port: device.port,
@@ -530,6 +531,7 @@ export class HapClient extends EventEmitter<HapClientEvents> {
         known.ipAddress = instance.ipAddress
         known.port = instance.port
         known.name = instance.name
+        known.displayName = instance.displayName
         known.configurationNumber = instance.configurationNumber
         known.connectionFailedCount = 0
         this.emit('instance-discovered', known)
@@ -570,10 +572,12 @@ export class HapClient extends EventEmitter<HapClientEvents> {
     if (
       known.port !== instance.port
       || known.name !== instance.name
+      || known.displayName !== instance.displayName
       || configurationChanged
     ) {
       known.port = instance.port
       known.name = instance.name
+      known.displayName = instance.displayName
       known.configurationNumber = instance.configurationNumber
       this.debug(`[HapClient] Discovery :: [${known.ipAddress}:${instance.port} `
         + `(${instance.username})] Instance Updated`)

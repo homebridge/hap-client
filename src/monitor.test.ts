@@ -59,6 +59,7 @@ function buildService(username: string): ServiceType {
     values: {},
     instance: {
       name: 'Test Bridge',
+      displayName: 'Test Bridge',
       username,
       ipAddress: '127.0.0.1',
       port: 51826,

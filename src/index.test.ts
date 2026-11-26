@@ -179,6 +179,70 @@ describe('hapClient bonjour up handler - same-port restart', () => {
     expect(refreshMonitorConnectionSpy).toHaveBeenCalledWith(existingInstance)
   })
 
+  it('takes the advertised mDNS name as displayName and keeps name as the model', async () => {
+    const username = 'AA:BB:CC:DD:EE:FF'
+    const existingInstance = {
+      name: 'homebridge',
+      displayName: 'Hue 1111',
+      username,
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    };
+    (hapClient as any).instances = [existingInstance]
+    const refreshMonitorConnectionSpy = vi.fn()
+      ; (hapClient as any).hapMonitor = {
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: refreshMonitorConnectionSpy,
+      finish: vi.fn(),
+    }
+
+    // The bridge advertises a new service instance name, the model stays in txt.md
+    await upHandler({
+      name: 'UniFi Protect 1C2D',
+      txt: { 'c#': 1, 'id': username, 'md': 'homebridge' },
+      port: 51826,
+      addresses: [],
+    })
+
+    expect(existingInstance.displayName).toBe('UniFi Protect 1C2D')
+    expect(existingInstance.name).toBe('homebridge')
+    expect(refreshMonitorConnectionSpy).toHaveBeenCalledWith(existingInstance)
+  })
+
+  it('falls back to txt.md as displayName when the announcement has no service name', async () => {
+    const username = 'AA:BB:CC:DD:EE:FF'
+    const existingInstance = {
+      name: 'homebridge',
+      displayName: 'Hue 1111',
+      username,
+      ipAddress: '127.0.0.1',
+      port: 51826,
+      services: [],
+      connectionFailedCount: 0,
+      configurationNumber: 1,
+    };
+    (hapClient as any).instances = [existingInstance]
+    ;(hapClient as any).hapMonitor = {
+      isInstanceConnected: vi.fn().mockReturnValue(false),
+      isInstanceMonitored: vi.fn().mockReturnValue(true),
+      refreshMonitorConnection: vi.fn(),
+      finish: vi.fn(),
+    }
+
+    await upHandler({
+      txt: { 'c#': 1, 'id': username, 'md': 'homebridge' },
+      port: 51826,
+      addresses: [],
+    })
+
+    expect(existingInstance.displayName).toBe('homebridge')
+    expect(existingInstance.name).toBe('homebridge')
+  })
+
   // A bridge that registers after the monitor was built has to be added to it,
   // with its own services only - or it never gets live updates (#2979)
   it('adds a newly registered bridge to a running monitor, with only that bridge\'s services', async () => {
@@ -294,6 +358,7 @@ describe('hapClient bonjour up handler - same-port restart', () => {
 
     const existingInstance = {
       name: 'Test Bridge',
+      displayName: 'Test Bridge',
       username,
       ipAddress: '127.0.0.1',
       port: 51826,
